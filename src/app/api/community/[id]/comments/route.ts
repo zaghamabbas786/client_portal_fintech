@@ -11,10 +11,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     include: { user: { select: { fullName: true, email: true } } },
   })
 
-  const formatted = comments.map(({ createdAt, updatedAt, ...rest }) => ({
+  const formatted = comments.map(({ createdAt, ...rest }) => ({
     ...rest,
     createdAt: createdAt.toISOString(),
-    updatedAt: updatedAt.toISOString(),
   }))
 
   return NextResponse.json({ comments: formatted })
@@ -38,8 +37,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     include: { user: { select: { fullName: true, email: true } } },
   })
 
-  const { createdAt: cAt, updatedAt: uAt, ...commentRest } = comment
+  const { createdAt, ...commentRest } = comment
   return NextResponse.json({
-    comment: { ...commentRest, createdAt: cAt.toISOString(), updatedAt: uAt.toISOString() },
+    comment: { ...commentRest, createdAt: createdAt.toISOString() },
   }, { status: 201 })
 }
