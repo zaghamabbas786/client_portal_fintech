@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import SidebarWrapper from '@/components/layout/SidebarWrapper'
+import QueryProvider from '@/components/providers/QueryProvider'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -13,11 +14,13 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (!userProfile || userProfile.role !== 'ADMIN') redirect('/dashboard')
 
   return (
-    <div className="flex min-h-screen" style={{ background: 'var(--bg-0)' }}>
-      <SidebarWrapper user={userProfile} />
-      <main className="ml-[240px] flex-1 p-7 max-w-[calc(100vw-240px)]">
-        {children}
-      </main>
-    </div>
+    <QueryProvider>
+      <div className="flex min-h-screen" style={{ background: 'var(--bg-0)' }}>
+        <SidebarWrapper user={userProfile} />
+        <main className="ml-[240px] flex-1 p-7 max-w-[calc(100vw-240px)]">
+          {children}
+        </main>
+      </div>
+    </QueryProvider>
   )
 }
