@@ -1,6 +1,6 @@
 import { Metadata } from 'next'
 import { getUserProfile } from '@/lib/session'
-import { prisma } from '@/lib/prisma'
+import { getCachedReferrals } from '@/lib/data'
 import ReferralClient from './ReferralClient'
 
 export const metadata: Metadata = { title: 'Referrals' }
@@ -12,9 +12,7 @@ export default async function ReferralsPage() {
   const isBoardroom = userProfile.role === 'BOARDROOM' || userProfile.role === 'ADMIN'
   const commissionRate = isBoardroom ? 30 : 15
 
-  const referrals = await prisma.referral.findMany({
-    where: { senderId: userProfile.id },
-  })
+  const referrals = await getCachedReferrals(userProfile.id)
 
   const totalSent = referrals.length
   const signedUp = referrals.filter((r) => r.signedUp).length

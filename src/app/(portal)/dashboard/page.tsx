@@ -1,7 +1,15 @@
 import { Metadata } from 'next'
 import { getUserProfile } from '@/lib/session'
-import { prisma } from '@/lib/prisma'
 import { formatCurrencyDetailed, formatCurrency, formatRelativeTime, getInitials } from '@/lib/utils'
+import {
+  getCachedCommunityHighlights,
+  getCachedLeaderboard,
+  getCachedUserEAs,
+  getCachedEAs,
+  getCachedDashboardDownloads,
+  getCachedDashboardVideos,
+  getCachedUserTickets,
+} from '@/lib/data'
 import Link from 'next/link'
 import { ArrowRight, Lock, Download, Play, Plus } from 'lucide-react'
 
@@ -25,57 +33,21 @@ export default async function DashboardPage() {
   const isStandard = userProfile.role === 'STANDARD'
   const displayName = (userProfile.fullName || userProfile.email.split('@')[0]).split(' ')[0]
 
-  // Fetch community highlights (latest 4 posts)
-  const communityPosts = await prisma.post.findMany({
-    take: 4,
-    orderBy: [{ isPinned: 'desc' }, { createdAt: 'desc' }],
-    include: {
-      user: { select: { id: true, fullName: true, email: true, role: true } },
-      _count: { select: { likes: true, comments: true } },
-    },
-  })
-
-  // Fetch leaderboard (current month)
   const now = new Date()
   const currentMonth = now.toLocaleString('en-US', { month: 'long' })
   const currentYear = now.getFullYear()
 
-  const leaderboard = await prisma.leaderboardEntry.findMany({
-    where: { month: currentMonth, year: currentYear },
-    orderBy: { payout: 'desc' },
-    take: 8,
-    include: { user: { select: { id: true, fullName: true, role: true } } },
-  })
-
-  // Fetch user EAs
-  const userEAs = await prisma.userEA.findMany({
-    where: { userId: userProfile.id },
-    include: { ea: true },
-  })
-
-  // Fetch all EAs (to show locked ones)
-  const allEAs = await prisma.eA.findMany({ orderBy: { name: 'asc' } })
-
-  // Fetch downloads (Standard tier)
-  const downloads = await prisma.download.findMany({
-    where: { requiredRole: 'STANDARD', isLatest: true },
-    take: 4,
-    orderBy: { createdAt: 'desc' },
-  })
-
-  // Fetch videos (4 latest)
-  const videos = await prisma.video.findMany({
-    where: { requiredRole: 'STANDARD' },
-    take: 4,
-    orderBy: [{ isFeatured: 'desc' }, { sortOrder: 'asc' }],
-  })
-
-  // Fetch latest support tickets
-  const tickets = await prisma.supportTicket.findMany({
-    where: { userId: userProfile.id },
-    take: 2,
-    orderBy: { createdAt: 'desc' },
-  })
+  // All fetches run in parallel and are served from cache after the first hit
+  const [communityPosts, leaderboard, userEAs, allEAs, downloads, videos, tickets] =
+    await Promise.all([
+      getCachedCommunityHighlights(),
+      getCachedLeaderboard(currentMonth, currentYear),
+      getCachedUserEAs(userProfile.id),
+      getCachedEAs(),
+      getCachedDashboardDownloads(),
+      getCachedDashboardVideos(),
+      getCachedUserTickets(userProfile.id, 2),
+    ])
 
   // ─── Tag color helpers ─────────────────────────────────────────────────────
   const tagStyle: Record<string, { bg: string; color: string; border: string; label: string }> = {

@@ -1,8 +1,8 @@
 import { Metadata } from 'next'
 import { getUserProfile } from '@/lib/session'
-import { prisma } from '@/lib/prisma'
 import { formatCurrency } from '@/lib/utils'
 import { Trophy } from 'lucide-react'
+import { getCachedLeaderboard } from '@/lib/data'
 
 export const metadata: Metadata = { title: 'Leaderboard' }
 
@@ -24,12 +24,7 @@ export default async function LeaderboardPage() {
   const currentMonth = now.toLocaleString('en-US', { month: 'long' })
   const currentYear = now.getFullYear()
 
-  const entries = await prisma.leaderboardEntry.findMany({
-    where: { month: currentMonth, year: currentYear },
-    orderBy: { payout: 'desc' },
-    take: 20,
-    include: { user: { select: { id: true, fullName: true, role: true } } },
-  })
+  const entries = await getCachedLeaderboard(currentMonth, currentYear)
 
   const rows = entries.length > 0
     ? entries.map((e, i) => ({

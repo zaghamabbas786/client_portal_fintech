@@ -1,7 +1,7 @@
 import { Metadata } from 'next'
 import { getUserProfile } from '@/lib/session'
-import { prisma } from '@/lib/prisma'
 import { KeyRound, Download, Lock } from 'lucide-react'
+import { getCachedUserEAs, getCachedEAs } from '@/lib/data'
 
 export const metadata: Metadata = { title: 'My EAs' }
 
@@ -9,13 +9,10 @@ export default async function MyEAsPage() {
   const userProfile = await getUserProfile()
   if (!userProfile) return null
 
-  const userEAs = await prisma.userEA.findMany({
-    where: { userId: userProfile.id },
-    include: { ea: true },
-    orderBy: { assignedAt: 'desc' },
-  })
-
-  const allEAs = await prisma.eA.findMany({ orderBy: { name: 'asc' } })
+  const [userEAs, allEAs] = await Promise.all([
+    getCachedUserEAs(userProfile.id),
+    getCachedEAs(),
+  ])
   const userEAIds = new Set(userEAs.map((u) => u.eaId))
 
   const isAurumOrAbove = ['AURUM', 'BOARDROOM', 'ADMIN'].includes(userProfile.role)

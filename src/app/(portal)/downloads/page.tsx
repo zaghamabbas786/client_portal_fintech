@@ -1,7 +1,7 @@
 import { Metadata } from 'next'
 import { getUserProfile } from '@/lib/session'
-import { prisma } from '@/lib/prisma'
 import { Download, Lock } from 'lucide-react'
+import { getCachedDownloads } from '@/lib/data'
 
 export const metadata: Metadata = { title: 'Downloads' }
 
@@ -37,11 +37,7 @@ export default async function DownloadsPage() {
     ? ['STANDARD', 'AURUM', 'BOARDROOM']
     : ['STANDARD']
 
-  const downloads = await prisma.download.findMany({
-    where: { requiredRole: { in: allowedRole } },
-    include: { ea: true },
-    orderBy: [{ ea: { name: 'asc' } }, { isLatest: 'desc' }],
-  })
+  const downloads = await getCachedDownloads(allowedRole)
 
   // Group by EA name
   const grouped: Record<string, typeof downloads> = {}
