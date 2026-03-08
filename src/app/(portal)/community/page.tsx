@@ -1,10 +1,15 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { formatRelativeTime, getInitials, formatCurrencyDetailed } from '@/lib/utils'
-import { Heart, MessageSquare, Flag, Pin, ImagePlus, Send, Filter, ChevronDown, X, Loader2 } from 'lucide-react'
+import { Heart, MessageSquare, Flag, Pin, ImagePlus, Send, Filter, ChevronDown, Loader2 } from 'lucide-react'
 import type { PostTag } from '@/types'
+
+// ─── Module-level cache (stale-while-revalidate) ─────────────────────────────
+// Lives outside the component so it survives navigation away and back.
+// Posts are shown instantly from cache; a background refresh keeps them fresh.
+const postsCache = new Map<string, { posts: Post[]; ts: number }>()
+const STALE_MS = 3 * 60 * 1000 // show cached data up to 3 min old without a loading spinner
 
 const POST_TAGS = [
   { value: 'PAYOUT', label: 'Payout Received', color: 'var(--green)', bg: 'var(--green-s)' },
@@ -51,8 +56,9 @@ const avatarGradients = [
 ]
 
 export default function CommunityPage() {
-  const [posts, setPosts] = useState<Post[]>([])
-  const [loading, setLoading] = useState(true)
+  const [posts, setPosts] = useState<Post[]>(() => postsCache.get('ALL')?.posts ?? [])
+  const [loading, setLoading] = useState(() => !postsCache.has('ALL'))
+  const [refreshing, setRefreshing] = useState(false)
   const [posting, setPosting] = useState(false)
   const [content, setContent] = useState('')
   const [selectedTag, setSelectedTag] = useState<PostTag>('GENERAL')
@@ -65,19 +71,50 @@ export default function CommunityPage() {
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false)
   const [likingIds, setLikingIds] = useState<Set<string>>(new Set())
   const [commentingIds, setCommentingIds] = useState<Set<string>>(new Set())
+  const abortRef = useRef<AbortController | null>(null)
 
-  const fetchPosts = useCallback(async () => {
-    const res = await fetch(`/api/community${filterTag !== 'ALL' ? `?tag=${filterTag}` : ''}`)
-    if (res.ok) {
-      const data = await res.json()
-      setPosts(data.posts ?? [])
+  const fetchPosts = useCallback(async (tag: string, isBackground = false) => {
+    // Cancel any in-flight request for this same slot
+    abortRef.current?.abort()
+    abortRef.current = new AbortController()
+
+    const cached = postsCache.get(tag)
+    const isFresh = cached && Date.now() - cached.ts < STALE_MS
+
+    if (cached) {
+      // Always show cached data immediately — no blank screen
+      setPosts(cached.posts)
+      setLoading(false)
     }
-    setLoading(false)
-  }, [filterTag])
+
+    // Skip network call if cache is still fresh and this isn't a forced refresh
+    if (isFresh && !isBackground) return
+
+    if (!cached) setLoading(true)
+    else setRefreshing(true)
+
+    try {
+      const res = await fetch(
+        `/api/community${tag !== 'ALL' ? `?tag=${tag}` : ''}`,
+        { signal: abortRef.current.signal },
+      )
+      if (res.ok) {
+        const data = await res.json()
+        const fresh = data.posts ?? []
+        postsCache.set(tag, { posts: fresh, ts: Date.now() })
+        setPosts(fresh)
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === 'AbortError') return
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
+    }
+  }, [])
 
   useEffect(() => {
-    fetchPosts()
-  }, [fetchPosts])
+    fetchPosts(filterTag)
+  }, [fetchPosts, filterTag])
 
   async function handlePost() {
     if (!content.trim()) return
@@ -94,7 +131,10 @@ export default function CommunityPage() {
     if (res.ok) {
       setContent('')
       setAmount('')
-      await fetchPosts()
+      // Bust the cache so the feed reloads with the new post
+      postsCache.delete('ALL')
+      postsCache.delete(filterTag)
+      await fetchPosts(filterTag)
     }
     setPosting(false)
   }
@@ -156,13 +196,22 @@ export default function CommunityPage() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-[22px] font-bold mb-1" style={{ color: 'var(--text-1)' }}>
-          Community
-        </h1>
-        <p className="text-[13px]" style={{ color: 'var(--text-2)' }}>
-          Share results, ask questions, connect with traders.
-        </p>
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h1 className="text-[22px] font-bold mb-1" style={{ color: 'var(--text-1)' }}>
+            Community
+          </h1>
+          <p className="text-[13px]" style={{ color: 'var(--text-2)' }}>
+            Share results, ask questions, connect with traders.
+          </p>
+        </div>
+        {/* Subtle background-refresh indicator */}
+        {refreshing && (
+          <div className="flex items-center gap-1.5 text-[11px] mt-1" style={{ color: 'var(--text-3)' }}>
+            <Loader2 size={11} className="animate-spin" />
+            Refreshing…
+          </div>
+        )}
       </div>
 
       {/* Create Post */}
