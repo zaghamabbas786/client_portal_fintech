@@ -41,5 +41,10 @@ next-env.d.ts
 # Vercel
 .vercel
 
+# Playwright
+e2e/.auth/
+test-results/
+playwright-report/
+
 # Turbopack
 .turbo
