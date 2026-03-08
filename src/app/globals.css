@@ -1,0 +1,112 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-0: #08080d;
+  --bg-1: #0e0e16;
+  --bg-2: #14141e;
+  --bg-3: #1a1a26;
+  --bg-hover: #1e1e2c;
+  --border: #252535;
+  --text-1: #f0f0f5;
+  --text-2: #9090a8;
+  --text-3: #606078;
+  --red: #e53935;
+  --red-s: rgba(229, 57, 53, 0.1);
+  --green: #00c853;
+  --green-s: rgba(0, 200, 83, 0.1);
+  --gold: #d4af37;
+  --gold-s: rgba(212, 175, 55, 0.1);
+  --blue: #42a5f5;
+  --blue-s: rgba(66, 165, 245, 0.08);
+  --purple: #ab47bc;
+  --purple-s: rgba(171, 71, 188, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--bg-0);
+  color: var(--text-1);
+  font-family: 'DM Sans', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-0);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #333345;
+}
+
+/* Focus ring */
+:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 2px;
+}
+
+/* Ticker animation */
+@keyframes ticker-scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.ticker-animate {
+  animation: ticker-scroll 35s linear infinite;
+}
+
+.ticker-animate:hover {
+  animation-play-state: paused;
+}
+
+/* Gold gradient text */
+.text-gold-gradient {
+  background: linear-gradient(135deg, #d4af37, #f5d67b);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Dashed gold border for locked items */
+.border-gold-dashed {
+  border: 1px dashed var(--gold);
+}
+
+/* Blur overlay for locked content */
+.locked-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(8, 8, 13, 0.88);
+  backdrop-filter: blur(4px);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 20px;
+  border-radius: inherit;
+}
