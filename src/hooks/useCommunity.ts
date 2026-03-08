@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData, type QueryKey } from '@tanstack/react-query'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -104,7 +104,7 @@ export function useToggleLike() {
       await qc.cancelQueries({ queryKey: communityKeys.all })
 
       // Snapshot every posts list in cache for rollback
-      const snapshots = new Map<readonly string[], Post[]>()
+      const snapshots = new Map<QueryKey, Post[]>()
       const allCached = qc.getQueriesData<Post[]>({ queryKey: communityKeys.all })
 
       for (const [key, data] of allCached) {
