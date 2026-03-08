@@ -1,19 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Ticket, Plus, X, Loader2, ChevronDown } from 'lucide-react'
+import { useState } from 'react'
+import { Ticket, Plus, X, Loader2 } from 'lucide-react'
 import { formatRelativeTime } from '@/lib/utils'
-
-interface SupportTicket {
-  id: string
-  subject: string
-  description: string
-  priority: 'LOW' | 'MEDIUM' | 'HIGH'
-  status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED'
-  createdAt: string
-  updatedAt: string
-  _count?: { replies: number }
-}
+import { useTickets, useCreateTicket } from '@/hooks/useSupport'
 
 const STATUS_META = {
   OPEN: { label: 'Open', bg: 'var(--blue-s)', color: 'var(--blue)' },
@@ -28,51 +18,29 @@ const PRIORITY_META = {
 }
 
 export default function SupportPage() {
-  const [tickets, setTickets] = useState<SupportTicket[]>([])
-  const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
-  const [formError, setFormError] = useState('')
-
   const [subject, setSubject] = useState('')
   const [description, setDescription] = useState('')
   const [priority, setPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH'>('MEDIUM')
 
-  useEffect(() => {
-    fetchTickets()
-  }, [])
+  const { data: tickets = [], isLoading } = useTickets()
+  const createTicket = useCreateTicket()
 
-  async function fetchTickets() {
-    const res = await fetch('/api/support')
-    if (res.ok) {
-      const data = await res.json()
-      setTickets(data.tickets ?? [])
-    }
-    setLoading(false)
-  }
+  const formError = createTicket.error?.message ?? ''
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setSubmitting(true)
-    setFormError('')
-
-    const res = await fetch('/api/support', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ subject, description, priority }),
-    })
-
-    if (res.ok) {
-      setSubject('')
-      setDescription('')
-      setPriority('MEDIUM')
-      setShowForm(false)
-      await fetchTickets()
-    } else {
-      const data = await res.json()
-      setFormError(data.error || 'Failed to submit ticket.')
-    }
-    setSubmitting(false)
+    createTicket.mutate(
+      { subject, description, priority },
+      {
+        onSuccess: () => {
+          setSubject('')
+          setDescription('')
+          setPriority('MEDIUM')
+          setShowForm(false)
+        },
+      },
+    )
   }
 
   return (
@@ -98,10 +66,7 @@ export default function SupportPage() {
       {/* New ticket modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)' }}>
-          <div
-            className="w-full max-w-[520px] rounded-xl p-6"
-            style={{ background: 'var(--bg-2)', border: '1px solid var(--border)' }}
-          >
+          <div className="w-full max-w-[520px] rounded-xl p-6" style={{ background: 'var(--bg-2)', border: '1px solid var(--border)' }}>
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-[16px] font-bold" style={{ color: 'var(--text-1)' }}>New Support Ticket</h2>
               <button onClick={() => setShowForm(false)} style={{ color: 'var(--text-3)' }}>
@@ -117,9 +82,7 @@ export default function SupportPage() {
               )}
 
               <div>
-                <label className="block text-[12px] font-semibold mb-1.5" style={{ color: 'var(--text-2)' }}>
-                  Subject
-                </label>
+                <label className="block text-[12px] font-semibold mb-1.5" style={{ color: 'var(--text-2)' }}>Subject</label>
                 <input
                   type="text"
                   value={subject}
@@ -132,9 +95,7 @@ export default function SupportPage() {
               </div>
 
               <div>
-                <label className="block text-[12px] font-semibold mb-1.5" style={{ color: 'var(--text-2)' }}>
-                  Priority
-                </label>
+                <label className="block text-[12px] font-semibold mb-1.5" style={{ color: 'var(--text-2)' }}>Priority</label>
                 <select
                   value={priority}
                   onChange={(e) => setPriority(e.target.value as 'LOW' | 'MEDIUM' | 'HIGH')}
@@ -148,9 +109,7 @@ export default function SupportPage() {
               </div>
 
               <div>
-                <label className="block text-[12px] font-semibold mb-1.5" style={{ color: 'var(--text-2)' }}>
-                  Description
-                </label>
+                <label className="block text-[12px] font-semibold mb-1.5" style={{ color: 'var(--text-2)' }}>Description</label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
@@ -173,11 +132,11 @@ export default function SupportPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={submitting}
+                  disabled={createTicket.isPending}
                   className="flex-1 py-2.5 rounded-[7px] text-[13px] font-semibold text-white flex items-center justify-center gap-2"
                   style={{ background: 'var(--red)' }}
                 >
-                  {submitting && <Loader2 size={14} className="animate-spin" />}
+                  {createTicket.isPending && <Loader2 size={14} className="animate-spin" />}
                   Submit Ticket
                 </button>
               </div>
@@ -187,7 +146,7 @@ export default function SupportPage() {
       )}
 
       {/* Tickets list */}
-      {loading ? (
+      {isLoading ? (
         <div className="text-center py-16" style={{ color: 'var(--text-3)' }}>
           <Loader2 size={24} className="mx-auto animate-spin mb-3" />
           <p>Loading tickets...</p>
@@ -203,7 +162,6 @@ export default function SupportPage() {
           {tickets.map((ticket) => {
             const statusMeta = STATUS_META[ticket.status]
             const priorityMeta = PRIORITY_META[ticket.priority]
-
             return (
               <div
                 key={ticket.id}
@@ -215,24 +173,16 @@ export default function SupportPage() {
                     <span className="font-mono text-[11px]" style={{ color: 'var(--text-3)' }}>
                       #{ticket.id.slice(0, 6).toUpperCase()}
                     </span>
-                    <span
-                      className="text-[9px] font-bold px-2 py-0.5 rounded-full"
-                      style={{ background: priorityMeta.bg, color: priorityMeta.color }}
-                    >
+                    <span className="text-[9px] font-bold px-2 py-0.5 rounded-full" style={{ background: priorityMeta.bg, color: priorityMeta.color }}>
                       {priorityMeta.label}
                     </span>
                   </div>
-                  <div className="text-[14px] font-semibold truncate" style={{ color: 'var(--text-1)' }}>
-                    {ticket.subject}
-                  </div>
+                  <div className="text-[14px] font-semibold truncate" style={{ color: 'var(--text-1)' }}>{ticket.subject}</div>
                   <div className="text-[11px] mt-0.5" style={{ color: 'var(--text-3)' }}>
                     {formatRelativeTime(ticket.createdAt)} · {ticket._count?.replies ?? 0} replies
                   </div>
                 </div>
-                <span
-                  className="text-[11px] font-semibold px-3 py-1.5 rounded-full flex-shrink-0"
-                  style={{ background: statusMeta.bg, color: statusMeta.color }}
-                >
+                <span className="text-[11px] font-semibold px-3 py-1.5 rounded-full flex-shrink-0" style={{ background: statusMeta.bg, color: statusMeta.color }}>
                   {statusMeta.label}
                 </span>
               </div>

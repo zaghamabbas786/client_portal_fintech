@@ -108,6 +108,7 @@ export default function Sidebar({ user, onSignOut, signingOut = false }: Sidebar
                   <Link
                     key={item.href}
                     href={isLocked ? '#' : item.href}
+                    prefetch={!isLocked}
                     className={cn(
                       'flex items-center gap-[10px] px-5 py-[9px] text-[13px] font-medium transition-all duration-100 relative',
                       'border-l-[3px]',
@@ -153,6 +154,7 @@ export default function Sidebar({ user, onSignOut, signingOut = false }: Sidebar
             </div>
             <Link
               href="/admin"
+              prefetch={true}
               className={cn(
                 'flex items-center gap-[10px] px-5 py-[9px] text-[13px] font-medium transition-all duration-100 relative border-l-[3px]',
                 pathname.startsWith('/admin')
