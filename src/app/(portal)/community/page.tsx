@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { formatRelativeTime, getInitials, formatCurrencyDetailed } from '@/lib/utils'
-import { Heart, MessageSquare, Flag, Pin, ImagePlus, Send, Filter, ChevronDown, X } from 'lucide-react'
+import { Heart, MessageSquare, Flag, Pin, ImagePlus, Send, Filter, ChevronDown, X, Loader2 } from 'lucide-react'
 import type { PostTag } from '@/types'
 
 const POST_TAGS = [
@@ -63,6 +63,8 @@ export default function CommunityPage() {
   const [commentInput, setCommentInput] = useState<Record<string, string>>({})
   const [tagDropdownOpen, setTagDropdownOpen] = useState(false)
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false)
+  const [likingIds, setLikingIds] = useState<Set<string>>(new Set())
+  const [commentingIds, setCommentingIds] = useState<Set<string>>(new Set())
 
   const fetchPosts = useCallback(async () => {
     const res = await fetch(`/api/community${filterTag !== 'ALL' ? `?tag=${filterTag}` : ''}`)
@@ -98,6 +100,8 @@ export default function CommunityPage() {
   }
 
   async function handleLike(postId: string) {
+    if (likingIds.has(postId)) return
+    setLikingIds((prev) => new Set(prev).add(postId))
     const res = await fetch(`/api/community/${postId}/like`, { method: 'POST' })
     if (res.ok) {
       setPosts((prev) =>
@@ -108,6 +112,7 @@ export default function CommunityPage() {
         )
       )
     }
+    setLikingIds((prev) => { const s = new Set(prev); s.delete(postId); return s })
   }
 
   async function toggleComments(postId: string) {
@@ -129,7 +134,8 @@ export default function CommunityPage() {
 
   async function handleComment(postId: string) {
     const text = commentInput[postId]?.trim()
-    if (!text) return
+    if (!text || commentingIds.has(postId)) return
+    setCommentingIds((prev) => new Set(prev).add(postId))
     const res = await fetch(`/api/community/${postId}/comments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -141,6 +147,7 @@ export default function CommunityPage() {
       setCommentInput((prev) => ({ ...prev, [postId]: '' }))
       setPosts((prev) => prev.map((p) => p.id === postId ? { ...p, _count: { ...p._count, comments: p._count.comments + 1 } } : p))
     }
+    setCommentingIds((prev) => { const s = new Set(prev); s.delete(postId); return s })
   }
 
   const showAmount = selectedTag === 'PAYOUT' || selectedTag === 'AURUM_RESULTS'
@@ -167,26 +174,15 @@ export default function CommunityPage() {
           value={content}
           onChange={(e) => setContent(e.target.value)}
           placeholder="Share your results or ask a question..."
-          rows={3}
-          className="w-full bg-transparent text-[13px] outline-none resize-none mb-3"
-          style={{ color: 'var(--text-1)' }}
+          rows={4}
+          className="w-full bg-transparent text-[13px] outline-none resize-none mb-3 rounded-lg px-1 py-1 transition-colors"
+          style={{
+            color: 'var(--text-1)',
+            borderBottom: '1px solid var(--border)',
+          }}
+          onFocus={(e) => (e.target.style.borderBottomColor = 'var(--red)')}
+          onBlur={(e) => (e.target.style.borderBottomColor = 'var(--border)')}
         />
-        <div
-          className="rounded-lg px-3 py-2 mb-3"
-          style={{ background: 'var(--bg-1)', border: '1px solid var(--border)' }}
-        >
-          <div className="text-[10px] font-semibold mb-1" style={{ color: 'var(--text-3)' }}>
-            POST CONTENT
-          </div>
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="Share your results or ask a question..."
-            rows={2}
-            className="w-full bg-transparent text-[13px] outline-none resize-none"
-            style={{ color: 'var(--text-1)', display: 'none' }}
-          />
-        </div>
 
         <div className="flex items-center gap-3 flex-wrap">
           {/* Tag selector */}
@@ -256,9 +252,13 @@ export default function CommunityPage() {
             className="ml-auto flex items-center gap-2 px-4 py-[7px] rounded-[7px] text-[12px] font-semibold text-white transition-all"
             style={{
               background: posting || !content.trim() ? '#7a1a18' : 'var(--red)',
+              opacity: !content.trim() ? 0.5 : 1,
             }}
           >
-            {posting ? '...' : <><Send size={12} /> Post</>}
+            {posting
+              ? <><Loader2 size={12} className="animate-spin" /> Posting...</>
+              : <><Send size={12} /> Post</>
+            }
           </button>
         </div>
       </div>
@@ -307,9 +307,9 @@ export default function CommunityPage() {
 
       {/* Posts Feed */}
       {loading ? (
-        <div className="text-center py-16" style={{ color: 'var(--text-3)' }}>
-          <div className="text-2xl mb-2">💬</div>
-          <p>Loading posts...</p>
+        <div className="flex flex-col items-center justify-center py-20 gap-3" style={{ color: 'var(--text-3)' }}>
+          <Loader2 size={28} className="animate-spin" style={{ color: 'var(--red)' }} />
+          <p className="text-[13px]">Loading posts...</p>
         </div>
       ) : posts.length === 0 ? (
         <div className="text-center py-16" style={{ color: 'var(--text-3)' }}>
@@ -400,10 +400,17 @@ export default function CommunityPage() {
                 <div className="flex items-center gap-4 mt-3" style={{ borderTop: '1px solid var(--border)', paddingTop: '10px' }}>
                   <button
                     onClick={() => handleLike(post.id)}
-                    className="flex items-center gap-1.5 text-[12px] transition-colors"
-                    style={{ color: post.isLiked ? 'var(--red)' : 'var(--text-3)' }}
+                    disabled={likingIds.has(post.id)}
+                    className="flex items-center gap-1.5 text-[12px] transition-all"
+                    style={{
+                      color: post.isLiked ? 'var(--red)' : 'var(--text-3)',
+                      opacity: likingIds.has(post.id) ? 0.5 : 1,
+                    }}
                   >
-                    <Heart size={14} fill={post.isLiked ? 'currentColor' : 'none'} />
+                    {likingIds.has(post.id)
+                      ? <Loader2 size={14} className="animate-spin" />
+                      : <Heart size={14} fill={post.isLiked ? 'currentColor' : 'none'} />
+                    }
                     {post._count.likes}
                   </button>
                   <button
@@ -463,10 +470,19 @@ export default function CommunityPage() {
                       />
                       <button
                         onClick={() => handleComment(post.id)}
-                        className="px-3 py-2 rounded-lg transition-all"
-                        style={{ background: 'var(--red)', color: '#fff' }}
+                        disabled={commentingIds.has(post.id)}
+                        className="px-3 py-2 rounded-lg transition-all flex items-center justify-center"
+                        style={{
+                          background: 'var(--red)',
+                          color: '#fff',
+                          opacity: commentingIds.has(post.id) ? 0.7 : 1,
+                          minWidth: '38px',
+                        }}
                       >
-                        <Send size={13} />
+                        {commentingIds.has(post.id)
+                          ? <Loader2 size={13} className="animate-spin" />
+                          : <Send size={13} />
+                        }
                       </button>
                     </div>
                   </div>

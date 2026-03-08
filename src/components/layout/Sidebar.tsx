@@ -17,6 +17,7 @@ import {
   Settings,
   Lock,
   LogOut,
+  Loader2,
 } from 'lucide-react'
 
 interface NavItem {
@@ -44,9 +45,10 @@ const navItems: NavItem[] = [
 interface SidebarProps {
   user: UserProfile
   onSignOut: () => void
+  signingOut?: boolean
 }
 
-export default function Sidebar({ user, onSignOut }: SidebarProps) {
+export default function Sidebar({ user, onSignOut, signingOut = false }: SidebarProps) {
   const pathname = usePathname()
   const isAurumOrAbove = user.role === 'AURUM' || user.role === 'BOARDROOM' || user.role === 'ADMIN'
   const isAdmin = user.role === 'ADMIN'
@@ -190,11 +192,15 @@ export default function Sidebar({ user, onSignOut }: SidebarProps) {
           </div>
           <button
             onClick={onSignOut}
-            className="flex-shrink-0 transition-colors"
-            style={{ color: 'var(--text-3)' }}
+            disabled={signingOut}
+            className="flex-shrink-0 transition-all"
+            style={{ color: signingOut ? 'var(--red)' : 'var(--text-3)', opacity: signingOut ? 0.7 : 1 }}
             title="Sign out"
           >
-            <LogOut size={14} />
+            {signingOut
+              ? <Loader2 size={14} className="animate-spin" />
+              : <LogOut size={14} />
+            }
           </button>
         </div>
       </div>
