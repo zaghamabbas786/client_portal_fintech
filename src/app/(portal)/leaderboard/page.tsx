@@ -1,10 +1,17 @@
 import { Metadata } from 'next'
+import { Suspense } from 'react'
 import { getUserProfile } from '@/lib/session'
 import { formatCurrency } from '@/lib/utils'
 import { Trophy } from 'lucide-react'
 import { getCachedLeaderboard } from '@/lib/data'
+import MonthFilter from './MonthFilter'
 
 export const metadata: Metadata = { title: 'Leaderboard' }
+
+const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+]
 
 const MOCK_LEADERBOARD = [
   { id: '1', rank: 1, name: 'Aiden W.', system: 'Aurum', propFirm: 'FTMO', payout: '$8,613', isAurum: true },
@@ -17,12 +24,31 @@ const MOCK_LEADERBOARD = [
   { id: '8', rank: 8, name: 'James R.', system: 'Omni', propFirm: 'Funded Next', payout: '$1,847', isAurum: false },
 ]
 
-export default async function LeaderboardPage() {
-  const userProfile = await getUserProfile()
-
+function parseMonthYear(params: { month?: string; year?: string }) {
   const now = new Date()
-  const currentMonth = now.toLocaleString('en-US', { month: 'long' })
-  const currentYear = now.getFullYear()
+  const defaultMonth = now.toLocaleString('en-US', { month: 'long' })
+  const defaultYear = now.getFullYear()
+
+  const monthParam = params.month
+  const yearParam = params.year
+
+  if (!monthParam || !yearParam) return { month: defaultMonth, year: defaultYear }
+
+  const year = parseInt(yearParam, 10)
+  if (isNaN(year) || year < 2020 || year > 2030) return { month: defaultMonth, year: defaultYear }
+
+  const month = MONTHS.includes(monthParam) ? monthParam : defaultMonth
+  return { month, year }
+}
+
+export default async function LeaderboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ month?: string; year?: string }>
+}) {
+  const userProfile = await getUserProfile()
+  const params = await searchParams
+  const { month: currentMonth, year: currentYear } = parseMonthYear(params)
 
   const entries = await getCachedLeaderboard(currentMonth, currentYear)
 
@@ -53,14 +79,13 @@ export default async function LeaderboardPage() {
             Top traders ranked by monthly payout.
           </p>
         </div>
-        {/* Month filter - visual only */}
-        <div
-          className="flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] font-medium"
-          style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', color: 'var(--text-2)' }}
-        >
-          {currentMonth} {currentYear}
-          <ChevronDown />
-        </div>
+        <Suspense fallback={
+          <div className="px-3 py-2 rounded-lg text-[13px] font-medium" style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', color: 'var(--text-2)' }}>
+            {currentMonth} {currentYear}
+          </div>
+        }>
+          <MonthFilter currentMonth={currentMonth} currentYear={currentYear} />
+        </Suspense>
       </div>
 
       <div className="overflow-x-auto rounded-[10px]">
@@ -156,13 +181,5 @@ export default async function LeaderboardPage() {
       </div>
       </div>
     </div>
-  )
-}
-
-function ChevronDown() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <polyline points="6 9 12 15 18 9" />
-    </svg>
   )
 }

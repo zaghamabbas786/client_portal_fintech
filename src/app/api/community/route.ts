@@ -25,17 +25,20 @@ export async function GET(request: NextRequest) {
 
   const where = tag && tag !== 'ALL' ? { tag: tag as any } : {}
 
-  const posts = await prisma.post.findMany({
-    where,
-    take: limit,
-    skip: (page - 1) * limit,
-    orderBy: [{ isPinned: 'desc' }, { createdAt: 'desc' }],
-    include: {
-      user: { select: { id: true, fullName: true, email: true, role: true } },
-      _count: { select: { likes: true, comments: true } },
-      likes: { where: { userId: userProfile.id }, select: { id: true } },
-    },
-  })
+  const [posts, total] = await Promise.all([
+    prisma.post.findMany({
+      where,
+      take: limit,
+      skip: (page - 1) * limit,
+      orderBy: [{ isPinned: 'desc' }, { createdAt: 'desc' }],
+      include: {
+        user: { select: { id: true, fullName: true, email: true, role: true } },
+        _count: { select: { likes: true, comments: true } },
+        likes: { where: { userId: userProfile.id }, select: { id: true } },
+      },
+    }),
+    prisma.post.count({ where }),
+  ])
 
   const formatted = posts.map(({ likes, amount, createdAt, updatedAt, ...rest }) => ({
     ...rest,
@@ -45,7 +48,13 @@ export async function GET(request: NextRequest) {
     isLiked: likes.length > 0,
   }))
 
-  return NextResponse.json({ posts: formatted })
+  return NextResponse.json({
+    posts: formatted,
+    total,
+    page,
+    limit,
+    hasNextPage: page * limit < total,
+  })
 }
 
 export async function POST(request: NextRequest) {

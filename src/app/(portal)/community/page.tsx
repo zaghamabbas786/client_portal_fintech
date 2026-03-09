@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { formatRelativeTime, getInitials, formatCurrencyDetailed } from '@/lib/utils'
 import { Heart, MessageSquare, Flag, Pin, ImagePlus, Send, Filter, ChevronDown, Loader2, X } from 'lucide-react'
 import type { PostTag } from '@/types'
 import { createClient } from '@/lib/supabase/client'
 import {
-  usePosts,
+  useInfinitePosts,
   useComments,
   useCreatePost,
   useToggleLike,
@@ -119,10 +119,41 @@ export default function CommunityPage() {
   const [tagDropdownOpen, setTagDropdownOpen] = useState(false)
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const sentinelRef = useRef<HTMLDivElement>(null)
 
-  const { data: posts = [], isLoading, isFetching } = usePosts(filterTag)
+  const {
+    data,
+    isLoading,
+    isFetching,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+  } = useInfinitePosts(filterTag)
+
+  // Flatten all pages into one list
+  const posts = data?.pages.flatMap((p) => p.posts) ?? []
+  const total = data?.pages[0]?.total ?? 0
+
   const createPost = useCreatePost()
   const toggleLike = useToggleLike()
+
+  // Auto-load next page when the sentinel div enters the viewport
+  const handleObserver = useCallback(
+    (entries: IntersectionObserverEntry[]) => {
+      if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+        fetchNextPage()
+      }
+    },
+    [hasNextPage, isFetchingNextPage, fetchNextPage],
+  )
+
+  useEffect(() => {
+    const el = sentinelRef.current
+    if (!el) return
+    const observer = new IntersectionObserver(handleObserver, { threshold: 0.1 })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [handleObserver])
 
   async function handleImagePick(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -220,10 +251,14 @@ export default function CommunityPage() {
           </h1>
           <p className="text-[13px]" style={{ color: 'var(--text-2)' }}>
             Share results, ask questions, connect with traders.
+            {total > 0 && (
+              <span className="ml-2 text-[11px]" style={{ color: 'var(--text-3)' }}>
+                {total} post{total !== 1 ? 's' : ''}
+              </span>
+            )}
           </p>
         </div>
-        {/* Background-refresh indicator — only shows when re-fetching with data already visible */}
-        {isFetching && !isLoading && (
+        {isFetching && !isLoading && !isFetchingNextPage && (
           <div className="flex items-center gap-1.5 text-[11px] mt-1" style={{ color: 'var(--text-3)' }}>
             <Loader2 size={11} className="animate-spin" />
             Refreshing…
@@ -532,6 +567,24 @@ export default function CommunityPage() {
               </div>
             )
           })}
+
+          {/* Sentinel — IntersectionObserver watches this to trigger next page load */}
+          <div ref={sentinelRef} className="h-2" />
+
+          {/* Loading next page spinner */}
+          {isFetchingNextPage && (
+            <div className="flex items-center justify-center py-6 gap-2" style={{ color: 'var(--text-3)' }}>
+              <Loader2 size={18} className="animate-spin" style={{ color: 'var(--red)' }} />
+              <span className="text-[12px]">Loading more posts…</span>
+            </div>
+          )}
+
+          {/* End of feed message */}
+          {!hasNextPage && posts.length > 0 && (
+            <div className="text-center py-6 text-[12px]" style={{ color: 'var(--text-3)' }}>
+              ✓ You've seen all {total} post{total !== 1 ? 's' : ''}
+            </div>
+          )}
         </div>
       )}
     </div>

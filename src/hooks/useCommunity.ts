@@ -1,4 +1,12 @@
-import { useQuery, useMutation, useQueryClient, keepPreviousData, type QueryKey } from '@tanstack/react-query'
+import {
+  useInfiniteQuery,
+  useQuery,
+  useMutation,
+  useQueryClient,
+  keepPreviousData,
+  type InfiniteData,
+  type QueryKey,
+} from '@tanstack/react-query'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -15,6 +23,14 @@ export interface Post {
   isLiked: boolean
 }
 
+export interface PostsPage {
+  posts: Post[]
+  total: number
+  page: number
+  limit: number
+  hasNextPage: boolean
+}
+
 export interface Comment {
   id: string
   content: string
@@ -23,7 +39,6 @@ export interface Comment {
 }
 
 // ─── Query keys ───────────────────────────────────────────────────────────────
-// Centralised so invalidation is consistent everywhere.
 
 export const communityKeys = {
   all: ['community'] as const,
@@ -33,12 +48,12 @@ export const communityKeys = {
 
 // ─── Fetchers ─────────────────────────────────────────────────────────────────
 
-async function fetchPosts(tag: string): Promise<Post[]> {
-  const url = tag === 'ALL' ? '/api/community' : `/api/community?tag=${tag}`
-  const res = await fetch(url)
+async function fetchPostsPage(tag: string, page: number): Promise<PostsPage> {
+  const params = new URLSearchParams({ page: String(page) })
+  if (tag !== 'ALL') params.set('tag', tag)
+  const res = await fetch(`/api/community?${params}`)
   if (!res.ok) throw new Error('Failed to load posts')
-  const data = await res.json()
-  return data.posts ?? []
+  return res.json()
 }
 
 async function fetchComments(postId: string): Promise<Comment[]> {
@@ -50,17 +65,18 @@ async function fetchComments(postId: string): Promise<Comment[]> {
 
 // ─── Hooks ────────────────────────────────────────────────────────────────────
 
-/** Fetches and caches posts for a given filter tag. */
-export function usePosts(tag: string) {
-  return useQuery({
+/** Infinite-scroll posts — new pages are appended as user scrolls to bottom. */
+export function useInfinitePosts(tag: string) {
+  return useInfiniteQuery<PostsPage, Error, InfiniteData<PostsPage>, QueryKey, number>({
     queryKey: communityKeys.posts(tag),
-    queryFn: () => fetchPosts(tag),
-    // Show previous filter's data while new filter loads — no flicker
+    queryFn: ({ pageParam }) => fetchPostsPage(tag, pageParam),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => (lastPage.hasNextPage ? lastPage.page + 1 : undefined),
     placeholderData: keepPreviousData,
   })
 }
 
-/** Fetches comments for a single post (only runs when `enabled` is true). */
+/** Fetches comments for a single post (only runs when enabled). */
 export function useComments(postId: string, enabled: boolean) {
   return useQuery({
     queryKey: communityKeys.comments(postId),
@@ -69,11 +85,16 @@ export function useComments(postId: string, enabled: boolean) {
   })
 }
 
-/** Creates a new post, then invalidates the cache so the feed refreshes. */
+/** Creates a new post and resets the feed back to page 1. */
 export function useCreatePost() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (body: { content: string; tag: string; amount: string | null; imageUrl?: string | null }) =>
+    mutationFn: (body: {
+      content: string
+      tag: string
+      amount: string | null
+      imageUrl?: string | null
+    }) =>
       fetch('/api/community', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -83,13 +104,12 @@ export function useCreatePost() {
         return r.json()
       }),
     onSuccess: () => {
-      // Invalidate all post lists so every open filter refreshes
       qc.invalidateQueries({ queryKey: communityKeys.all })
     },
   })
 }
 
-/** Toggles a like with optimistic update — instant feedback, no spinner needed. */
+/** Optimistic like toggle — flips instantly, rolls back on error. */
 export function useToggleLike() {
   const qc = useQueryClient()
   return useMutation({
@@ -98,37 +118,39 @@ export function useToggleLike() {
         if (!r.ok) throw new Error('Like failed')
       }),
 
-    // Flip the like immediately before the server responds
     onMutate: async (postId: string) => {
-      // Cancel any in-flight refetches so they don't overwrite our optimistic update
       await qc.cancelQueries({ queryKey: communityKeys.all })
 
-      // Snapshot every posts list in cache for rollback
-      const snapshots = new Map<QueryKey, Post[]>()
-      const allCached = qc.getQueriesData<Post[]>({ queryKey: communityKeys.all })
+      const snapshots = new Map<QueryKey, InfiniteData<PostsPage>>()
+      const allCached = qc.getQueriesData<InfiniteData<PostsPage>>({
+        queryKey: communityKeys.all,
+      })
 
       for (const [key, data] of allCached) {
         if (!data) continue
         snapshots.set(key, data)
-        qc.setQueryData<Post[]>(key, (old) =>
-          old?.map((p) =>
-            p.id === postId
-              ? {
-                  ...p,
-                  isLiked: !p.isLiked,
-                  _count: {
-                    ...p._count,
-                    likes: p.isLiked ? p._count.likes - 1 : p._count.likes + 1,
-                  },
-                }
-              : p,
-          ),
-        )
+        qc.setQueryData<InfiniteData<PostsPage>>(key, {
+          ...data,
+          pages: data.pages.map((pg) => ({
+            ...pg,
+            posts: pg.posts.map((p) =>
+              p.id === postId
+                ? {
+                    ...p,
+                    isLiked: !p.isLiked,
+                    _count: {
+                      ...p._count,
+                      likes: p.isLiked ? p._count.likes - 1 : p._count.likes + 1,
+                    },
+                  }
+                : p,
+            ),
+          })),
+        })
       }
       return { snapshots }
     },
 
-    // Roll back all optimistic updates on error
     onError: (_err, _postId, context) => {
       if (!context) return
       for (const [key, data] of context.snapshots) {
@@ -138,7 +160,7 @@ export function useToggleLike() {
   })
 }
 
-/** Adds a comment, then updates the comment list and post count in the cache. */
+/** Adds a comment and updates counts across all cached pages. */
 export function useAddComment() {
   const qc = useQueryClient()
   return useMutation({
@@ -153,19 +175,24 @@ export function useAddComment() {
       }),
 
     onSuccess: (data, { postId }) => {
-      // Append the new comment to the existing list
       qc.setQueryData<Comment[]>(communityKeys.comments(postId), (old) => [
         ...(old ?? []),
         data.comment,
       ])
-      // Bump the comment count on all post list caches
-      qc.setQueriesData<Post[]>({ queryKey: communityKeys.all }, (old) =>
-        old?.map((p) =>
-          p.id === postId
-            ? { ...p, _count: { ...p._count, comments: p._count.comments + 1 } }
-            : p,
-        ),
-      )
+      qc.setQueriesData<InfiniteData<PostsPage>>({ queryKey: communityKeys.all }, (old) => {
+        if (!old) return old
+        return {
+          ...old,
+          pages: old.pages.map((pg) => ({
+            ...pg,
+            posts: pg.posts.map((p) =>
+              p.id === postId
+                ? { ...p, _count: { ...p._count, comments: p._count.comments + 1 } }
+                : p,
+            ),
+          })),
+        }
+      })
     },
   })
 }
