@@ -14,15 +14,15 @@ const FILE_TYPE_META: Record<string, { emoji: string; bg: string; color: string 
 
 const MOCK_FILES = {
   Omni: [
-    { id: '1', name: 'Omni EA v2.2', description: 'EA File · v2.2', fileType: 'EA_FILE', isLatest: true },
-    { id: '2', name: 'Omni Setup Guide', description: 'Setup Guide · v2', fileType: 'PDF_GUIDE', isLatest: true },
-    { id: '3', name: 'Omni Set Files Pack', description: 'Set Files · v2', fileType: 'SET_FILE', isLatest: true },
-    { id: '4', name: 'Omni Broker Settings', description: 'Broker Settings · v1', fileType: 'BROKER_SETTINGS', isLatest: true },
+    { id: '1', name: 'Omni EA v2.2', description: 'EA File · v2.2', fileType: 'EA_FILE', isLatest: true, fileUrl: null },
+    { id: '2', name: 'Omni Setup Guide', description: 'Setup Guide · v2', fileType: 'PDF_GUIDE', isLatest: true, fileUrl: null },
+    { id: '3', name: 'Omni Set Files Pack', description: 'Set Files · v2', fileType: 'SET_FILE', isLatest: true, fileUrl: null },
+    { id: '4', name: 'Omni Broker Settings', description: 'Broker Settings · v1', fileType: 'BROKER_SETTINGS', isLatest: true, fileUrl: null },
   ],
   'Asia Scalper': [
-    { id: '5', name: 'Asia Scalper EA v2.1', description: 'EA File · v2.1', fileType: 'EA_FILE', isLatest: true },
-    { id: '6', name: 'Asia Scalper Guide', description: 'Setup Guide · v2', fileType: 'PDF_GUIDE', isLatest: true },
-    { id: '7', name: 'Asia Scalper Set Files', description: 'Set Files · v2.1', fileType: 'SET_FILE', isLatest: true },
+    { id: '5', name: 'Asia Scalper EA v2.1', description: 'EA File · v2.1', fileType: 'EA_FILE', isLatest: true, fileUrl: null },
+    { id: '6', name: 'Asia Scalper Guide', description: 'Setup Guide · v2', fileType: 'PDF_GUIDE', isLatest: true, fileUrl: null },
+    { id: '7', name: 'Asia Scalper Set Files', description: 'Set Files · v2.1', fileType: 'SET_FILE', isLatest: true, fileUrl: null },
   ],
 }
 
@@ -67,13 +67,26 @@ export default async function DownloadsPage() {
             {eaName} Files
           </h2>
           <div className="grid grid-cols-2 gap-3">
-            {(files as { id: string; name: string; description: string | null; fileType: string; isLatest: boolean }[]).map((file) => {
+            {(files as { id: string; name: string; description: string | null; fileType: string; isLatest: boolean; fileUrl?: string }[]).map((file) => {
               const meta = FILE_TYPE_META[file.fileType] ?? FILE_TYPE_META.EA_FILE
+              const hasUrl = !!file.fileUrl
+
               return (
-                <div
+                <a
                   key={file.id}
-                  className="flex items-center gap-3 px-4 py-3 rounded-[8px] cursor-pointer transition-all group"
-                  style={{ background: 'var(--bg-2)', border: '1px solid var(--border)' }}
+                  href={file.fileUrl ?? '#'}
+                  download={hasUrl ? file.name : undefined}
+                  target={hasUrl ? '_blank' : undefined}
+                  rel="noopener noreferrer"
+                  aria-disabled={!hasUrl}
+                  className="flex items-center gap-3 px-4 py-3 rounded-[8px] transition-all group"
+                  style={{
+                    background: 'var(--bg-2)',
+                    border: '1px solid var(--border)',
+                    cursor: hasUrl ? 'pointer' : 'not-allowed',
+                    opacity: hasUrl ? 1 : 0.5,
+                    textDecoration: 'none',
+                  }}
                 >
                   <div
                     className="w-10 h-10 rounded-[8px] flex items-center justify-center text-lg flex-shrink-0"
@@ -87,6 +100,7 @@ export default async function DownloadsPage() {
                     </div>
                     <div className="text-[11px]" style={{ color: 'var(--text-3)' }}>
                       {file.description}
+                      {!hasUrl && ' · No file attached'}
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
@@ -98,9 +112,13 @@ export default async function DownloadsPage() {
                         LATEST
                       </span>
                     )}
-                    <Download size={14} style={{ color: 'var(--text-3)' }} className="group-hover:text-[var(--text-1)] transition-colors" />
+                    <Download
+                      size={14}
+                      className="transition-colors"
+                      style={{ color: hasUrl ? 'var(--text-3)' : 'var(--text-3)' }}
+                    />
                   </div>
-                </div>
+                </a>
               )
             })}
           </div>
