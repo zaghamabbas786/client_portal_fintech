@@ -30,6 +30,7 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   const isAuthRoute = pathname === '/login' || pathname === '/signup'
+  const isRefRoute = pathname.startsWith('/ref/')
   const isAdminRoute = pathname.startsWith('/admin')
   const isApiRoute = pathname.startsWith('/api')
   const isPublicAsset =
@@ -37,7 +38,8 @@ export async function middleware(request: NextRequest) {
 
   if (isPublicAsset || isApiRoute) return supabaseResponse
 
-  if (!user && !isAuthRoute) {
+  // Allow /ref/[code] without auth so referral cookie gets set before signup
+  if (!user && !isAuthRoute && !isRefRoute) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     url.searchParams.set('redirectTo', pathname)

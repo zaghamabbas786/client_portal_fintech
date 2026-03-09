@@ -202,7 +202,11 @@ function LoginForm() {
 
         <p className="text-center text-[12px] mt-5" style={{ color: 'var(--text-3)' }}>
           Don&apos;t have an account?{' '}
-          <Link href="/signup" style={{ color: 'var(--red)' }} className="font-semibold">
+          <Link
+            href={redirectTo.startsWith('/ref/') ? redirectTo : '/signup'}
+            style={{ color: 'var(--red)' }}
+            className="font-semibold"
+          >
             Sign up
           </Link>
         </p>
