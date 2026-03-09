@@ -29,7 +29,8 @@ export default function SignupPage() {
     }
 
     const supabase = createClient()
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== 'undefined' ? window.location.origin : '')
+    // Use current origin so confirmation redirect matches the domain (keeps ref_code cookie)
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : (process.env.NEXT_PUBLIC_APP_URL || '')
     const { error } = await supabase.auth.signUp({
       email,
       password,
