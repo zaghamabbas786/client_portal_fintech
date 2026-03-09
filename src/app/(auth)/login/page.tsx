@@ -45,9 +45,10 @@ function LoginForm() {
     setMagicLoading(true)
     setError('')
     const supabase = createClient()
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== 'undefined' ? window.location.origin : '')
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+      options: { emailRedirectTo: `${baseUrl}/auth/callback` },
     })
     setMagicLoading(false)
     if (error) {
