@@ -1,19 +1,18 @@
-import { redirect } from 'next/navigation'
+import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 
-interface Props {
-  params: Promise<{ code: string }>
-}
-
 /**
- * Referral landing page. No database calls - avoids connection pool timeouts.
+ * Referral redirect. No database calls - avoids connection pool timeouts.
  *
  * 1. Stores the referral code in a cookie (30 days).
  * 2. Redirects to /signup?ref=<code>.
  *
  * The auth callback validates the code when the user confirms signup.
  */
-export default async function ReferralLandingPage({ params }: Props) {
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: Promise<{ code: string }> }
+) {
   const { code } = await params
 
   const cookieStore = await cookies()
@@ -24,5 +23,7 @@ export default async function ReferralLandingPage({ params }: Props) {
     sameSite: 'lax',
   })
 
-  redirect(`/signup?ref=${encodeURIComponent(code)}`)
+  return NextResponse.redirect(
+    new URL(`/signup?ref=${encodeURIComponent(code)}`, _req.url)
+  )
 }
