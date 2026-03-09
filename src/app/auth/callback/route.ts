@@ -29,8 +29,8 @@ export async function GET(request: NextRequest) {
 
     const { data, error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) {
-      // If a referral cookie is present, track the sign-up
-      const refCode = cookieStore.get('ref_code')?.value
+      // Referral: prefer ref from URL (survives email redirect), fallback to cookie
+      const refCode = searchParams.get('ref') || cookieStore.get('ref_code')?.value
       if (refCode && data.user) {
         try {
           const { prisma } = await import('@/lib/prisma')

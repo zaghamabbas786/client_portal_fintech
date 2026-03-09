@@ -1,13 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Eye, EyeOff, Loader2 } from 'lucide-react'
 
-export default function SignupPage() {
+function SignupForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const refFromUrl = searchParams.get('ref')
 
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
@@ -29,14 +31,18 @@ export default function SignupPage() {
     }
 
     const supabase = createClient()
-    // Use current origin so confirmation redirect matches the domain (keeps ref_code cookie)
+    // Use current origin so confirmation redirect matches the domain
     const baseUrl = typeof window !== 'undefined' ? window.location.origin : (process.env.NEXT_PUBLIC_APP_URL || '')
+    // Pass ref in URL so it survives the email redirect (cookies can be lost)
+    const callbackUrl = refFromUrl
+      ? `${baseUrl}/auth/callback?ref=${encodeURIComponent(refFromUrl)}`
+      : `${baseUrl}/auth/callback`
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: { full_name: fullName },
-        emailRedirectTo: `${baseUrl}/auth/callback`,
+        emailRedirectTo: callbackUrl,
       },
     })
 
@@ -202,5 +208,21 @@ export default function SignupPage() {
         </p>
       </div>
     </div>
+  )
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={
+      <div className="w-full max-w-[400px]">
+        <div className="rounded-xl p-7" style={{ background: 'var(--bg-2)', border: '1px solid var(--border)' }}>
+          <div className="flex justify-center py-8">
+            <Loader2 size={24} className="animate-spin" style={{ color: 'var(--text-3)' }} />
+          </div>
+        </div>
+      </div>
+    }>
+      <SignupForm />
+    </Suspense>
   )
 }
