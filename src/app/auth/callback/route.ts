@@ -1,5 +1,6 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { revalidateTag } from 'next/cache'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest) {
@@ -38,21 +39,33 @@ export async function GET(request: NextRequest) {
             select: { id: true },
           })
           if (sender) {
-            const newUser = await prisma.user.findUnique({
+            // User row may not exist yet (created by getUserProfile on first page load).
+            // Create it here so we can link the referral.
+            let newUser = await prisma.user.findUnique({
               where: { supabaseId: data.user.id },
               select: { id: true },
             })
-            if (newUser) {
-              await prisma.referral.create({
+            if (!newUser) {
+              newUser = await prisma.user.create({
                 data: {
-                  senderId: sender.id,
+                  supabaseId: data.user.id,
                   email: data.user.email ?? '',
-                  signedUp: true,
-                  convertedUserId: newUser.id,
+                  fullName: data.user.user_metadata?.full_name ?? null,
+                  role: 'STANDARD',
                 },
-              }).catch(() => { /* ignore duplicate */ })
-              cookieStore.delete('ref_code')
+                select: { id: true },
+              })
             }
+            await prisma.referral.create({
+              data: {
+                senderId: sender.id,
+                email: data.user.email ?? '',
+                signedUp: true,
+                convertedUserId: newUser.id,
+              },
+            }).catch(() => { /* ignore duplicate */ })
+            cookieStore.delete('ref_code')
+            revalidateTag('referrals')
           }
         } catch { /* referral tracking is non-critical */ }
       }
