@@ -10,7 +10,7 @@ export async function GET() {
   const user = await prisma.user.findUnique({
     where: { supabaseId: authUser.id },
     select: {
-      id: true, fullName: true, email: true, phone: true,
+      id: true, fullName: true, email: true, phone: true, avatarUrl: true,
       emailNotifications: true, communityAlerts: true, payoutUpdates: true,
     },
   })
@@ -24,7 +24,7 @@ export async function PATCH(request: NextRequest) {
   if (!authUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await request.json()
-  const { fullName, phone, emailNotifications, communityAlerts, payoutUpdates } = body
+  const { fullName, phone, emailNotifications, communityAlerts, payoutUpdates, avatarUrl } = body
 
   const user = await prisma.user.update({
     where: { supabaseId: authUser.id },
@@ -34,6 +34,7 @@ export async function PATCH(request: NextRequest) {
       ...(emailNotifications !== undefined && { emailNotifications }),
       ...(communityAlerts !== undefined && { communityAlerts }),
       ...(payoutUpdates !== undefined && { payoutUpdates }),
+      ...(avatarUrl !== undefined && { avatarUrl }),
     },
   })
 

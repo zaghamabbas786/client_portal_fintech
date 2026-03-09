@@ -114,6 +114,7 @@ export default function CommunityPage() {
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState(false)
   const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set())
   const [tagDropdownOpen, setTagDropdownOpen] = useState(false)
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false)
@@ -127,34 +128,37 @@ export default function CommunityPage() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    // Show local preview immediately
+    // Show local preview immediately so the user sees something straight away
     const objectUrl = URL.createObjectURL(file)
     setImagePreview(objectUrl)
+    setImageUrl(null)
+    setUploadError(false)
     setUploading(true)
 
     try {
       const supabase = createClient()
       const ext = file.name.split('.').pop()
-      const path = `community/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+      const filePath = `community/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
 
       const { error } = await supabase.storage
         .from('community-images')
-        .upload(path, file, { cacheControl: '3600', upsert: false })
+        .upload(filePath, file, { cacheControl: '3600', upsert: false })
 
       if (error) throw error
 
       const { data: { publicUrl } } = supabase.storage
         .from('community-images')
-        .getPublicUrl(path)
+        .getPublicUrl(filePath)
 
       setImageUrl(publicUrl)
+      setUploadError(false)
     } catch (err) {
       console.error('Image upload failed:', err)
-      setImagePreview(null)
+      // Keep the preview visible — just mark it as failed so user can retry or remove
       setImageUrl(null)
+      setUploadError(true)
     } finally {
       setUploading(false)
-      // Reset input so the same file can be re-selected if needed
       if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }
@@ -162,7 +166,16 @@ export default function CommunityPage() {
   function removeImage() {
     setImagePreview(null)
     setImageUrl(null)
+    setUploadError(false)
     if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  function retryUpload() {
+    // Re-open file picker so user can re-select the same image
+    setUploadError(false)
+    setImagePreview(null)
+    setImageUrl(null)
+    setTimeout(() => fileInputRef.current?.click(), 50)
   }
 
   const showAmount = selectedTag === 'PAYOUT' || selectedTag === 'AURUM_RESULTS'
@@ -233,21 +246,56 @@ export default function CommunityPage() {
 
         {/* Image preview */}
         {imagePreview && (
-          <div className="mb-3 relative inline-block">
+          <div className="mb-3 relative inline-block max-w-full">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={imagePreview}
               alt="Attachment preview"
               className="max-h-40 rounded-lg object-cover"
-              style={{ border: '1px solid var(--border)' }}
+              style={{
+                border: `1px solid ${uploadError ? 'var(--red)' : 'var(--border)'}`,
+                opacity: uploading || uploadError ? 0.6 : 1,
+              }}
             />
+
+            {/* Uploading spinner overlay */}
             {uploading && (
-              <div className="absolute inset-0 flex items-center justify-center rounded-lg"
-                style={{ background: 'rgba(0,0,0,0.5)' }}>
+              <div className="absolute inset-0 flex flex-col items-center justify-center rounded-lg gap-1"
+                style={{ background: 'rgba(0,0,0,0.55)' }}>
                 <Loader2 size={20} className="animate-spin text-white" />
+                <span className="text-[10px] text-white font-medium">Uploading…</span>
               </div>
             )}
-            {!uploading && (
+
+            {/* Upload failed overlay */}
+            {!uploading && uploadError && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center rounded-lg gap-2"
+                style={{ background: 'rgba(0,0,0,0.65)' }}>
+                <span className="text-[11px] text-white font-semibold">Upload failed</span>
+                <button
+                  onClick={retryUpload}
+                  className="text-[10px] font-bold px-2 py-1 rounded"
+                  style={{ background: 'var(--red)', color: '#fff' }}
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+
+            {/* Remove button — only shown when not uploading/failed */}
+            {!uploading && !uploadError && (
+              <button
+                onClick={removeImage}
+                className="absolute top-1 right-1 rounded-full p-0.5 transition-colors"
+                style={{ background: 'rgba(0,0,0,0.7)', color: '#fff' }}
+                title="Remove image"
+              >
+                <X size={12} />
+              </button>
+            )}
+
+            {/* Always allow removal even on error */}
+            {!uploading && uploadError && (
               <button
                 onClick={removeImage}
                 className="absolute top-1 right-1 rounded-full p-0.5 transition-colors"
@@ -326,9 +374,9 @@ export default function CommunityPage() {
 
           <button
             onClick={handlePost}
-            disabled={createPost.isPending || !content.trim() || uploading}
+            disabled={createPost.isPending || !content.trim() || uploading || uploadError}
             className="ml-auto flex items-center gap-2 px-4 py-[7px] rounded-[7px] text-[12px] font-semibold text-white transition-all"
-            style={{ background: createPost.isPending || !content.trim() ? '#7a1a18' : 'var(--red)', opacity: !content.trim() ? 0.5 : 1 }}
+            style={{ background: createPost.isPending || !content.trim() ? '#7a1a18' : 'var(--red)', opacity: !content.trim() || uploadError ? 0.5 : 1 }}
           >
             {createPost.isPending
               ? <><Loader2 size={12} className="animate-spin" /> Posting...</>

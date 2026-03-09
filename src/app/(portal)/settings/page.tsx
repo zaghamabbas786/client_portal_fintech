@@ -1,18 +1,23 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Settings, Loader2, Check } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Settings, Loader2, Check, Camera } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
 export default function SettingsPage() {
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [emailNotifications, setEmailNotifications] = useState(true)
   const [communityAlerts, setCommunityAlerts] = useState(true)
   const [payoutUpdates, setPayoutUpdates] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [avatarUploading, setAvatarUploading] = useState(false)
+
+  const avatarInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     fetch('/api/settings')
@@ -22,6 +27,7 @@ export default function SettingsPage() {
           setFullName(data.user.fullName || '')
           setEmail(data.user.email || '')
           setPhone(data.user.phone || '')
+          setAvatarUrl(data.user.avatarUrl || null)
           setEmailNotifications(data.user.emailNotifications ?? true)
           setCommunityAlerts(data.user.communityAlerts ?? true)
           setPayoutUpdates(data.user.payoutUpdates ?? true)
@@ -29,6 +35,41 @@ export default function SettingsPage() {
         setLoading(false)
       })
   }, [])
+
+  async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setAvatarUploading(true)
+    try {
+      const supabase = createClient()
+      const ext = file.name.split('.').pop()
+      const path = `avatars/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+
+      const { error } = await supabase.storage
+        .from('avatars')
+        .upload(path, file, { cacheControl: '3600', upsert: false })
+
+      if (error) throw error
+
+      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
+
+      // Save immediately to DB
+      await fetch('/api/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ avatarUrl: publicUrl }),
+      })
+
+      setAvatarUrl(publicUrl)
+    } catch (err) {
+      console.error('Avatar upload failed:', err)
+      alert('Upload failed. Make sure the "avatars" bucket exists in Supabase Storage (public bucket).')
+    } finally {
+      setAvatarUploading(false)
+      if (avatarInputRef.current) avatarInputRef.current.value = ''
+    }
+  }
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
@@ -47,6 +88,10 @@ export default function SettingsPage() {
     }
   }
 
+  const initials = fullName
+    ? fullName.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)
+    : email[0]?.toUpperCase() || 'U'
+
   function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
     return (
       <button
@@ -56,7 +101,7 @@ export default function SettingsPage() {
         style={{ background: value ? 'var(--red)' : 'var(--bg-3)' }}
       >
         <span
-          className="absolute top-0.5 w-4 h-4 rounded-full transition-transform"
+          className="absolute top-0.5 w-4 h-4 rounded-full transition-all"
           style={{
             background: '#fff',
             left: value ? '22px' : '2px',
@@ -96,16 +141,66 @@ export default function SettingsPage() {
             Profile
           </h2>
 
-          {/* Avatar placeholder */}
-          <div className="mb-5">
-            <div
-              className="w-16 h-16 rounded-full flex items-center justify-center font-bold text-xl text-white cursor-pointer relative group"
+          {/* Avatar upload */}
+          <div className="mb-5 flex items-center gap-4">
+            {/* Hidden file input */}
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              className="hidden"
+              onChange={handleAvatarUpload}
+            />
+
+            {/* Avatar circle — click to upload */}
+            <button
+              type="button"
+              onClick={() => !avatarUploading && avatarInputRef.current?.click()}
+              className="relative w-16 h-16 rounded-full overflow-hidden flex-shrink-0 group"
               style={{ background: 'linear-gradient(135deg, var(--red), #b71c1c)' }}
+              title="Click to change profile picture"
             >
-              {fullName ? fullName[0].toUpperCase() : 'U'}
-              <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-[10px] font-semibold">
-                Edit
+              {avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={avatarUrl} alt="Profile" className="w-full h-full object-cover" />
+              ) : (
+                <span className="w-full h-full flex items-center justify-center font-bold text-xl text-white">
+                  {initials}
+                </span>
+              )}
+
+              {/* Overlay on hover */}
+              <div
+                className="absolute inset-0 flex flex-col items-center justify-center gap-0.5 transition-opacity"
+                style={{
+                  background: 'rgba(0,0,0,0.55)',
+                  opacity: avatarUploading ? 1 : 0,
+                }}
+              >
+                {avatarUploading
+                  ? <Loader2 size={18} className="animate-spin text-white" />
+                  : null
+                }
               </div>
+              <div
+                className="absolute inset-0 flex flex-col items-center justify-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                style={{ background: 'rgba(0,0,0,0.55)' }}
+              >
+                <Camera size={16} className="text-white" />
+                <span className="text-[9px] font-semibold text-white">CHANGE</span>
+              </div>
+            </button>
+
+            <div>
+              <p className="text-[13px] font-medium" style={{ color: 'var(--text-1)' }}>
+                Profile Photo
+              </p>
+              <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-3)' }}>
+                Click the photo to upload a new one
+              </p>
+              <p className="text-[11px]" style={{ color: 'var(--text-3)' }}>
+                JPG, PNG or WebP · Max 5 MB
+              </p>
             </div>
           </div>
 
@@ -165,33 +260,14 @@ export default function SettingsPage() {
 
           <div className="space-y-4">
             {[
-              {
-                label: 'Email Notifications',
-                desc: 'Receive updates via email',
-                value: emailNotifications,
-                onChange: setEmailNotifications,
-              },
-              {
-                label: 'Community Alerts',
-                desc: 'Get notified about community activity',
-                value: communityAlerts,
-                onChange: setCommunityAlerts,
-              },
-              {
-                label: 'Payout Updates',
-                desc: 'Notifications about payout and results',
-                value: payoutUpdates,
-                onChange: setPayoutUpdates,
-              },
+              { label: 'Email Notifications', desc: 'Receive updates via email', value: emailNotifications, onChange: setEmailNotifications },
+              { label: 'Community Alerts', desc: 'Get notified about community activity', value: communityAlerts, onChange: setCommunityAlerts },
+              { label: 'Payout Updates', desc: 'Notifications about payout and results', value: payoutUpdates, onChange: setPayoutUpdates },
             ].map((item) => (
               <div key={item.label} className="flex items-center justify-between">
                 <div>
-                  <div className="text-[13px] font-medium" style={{ color: 'var(--text-1)' }}>
-                    {item.label}
-                  </div>
-                  <div className="text-[11px]" style={{ color: 'var(--text-3)' }}>
-                    {item.desc}
-                  </div>
+                  <div className="text-[13px] font-medium" style={{ color: 'var(--text-1)' }}>{item.label}</div>
+                  <div className="text-[11px]" style={{ color: 'var(--text-3)' }}>{item.desc}</div>
                 </div>
                 <Toggle value={item.value} onChange={item.onChange} />
               </div>

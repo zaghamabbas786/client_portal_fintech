@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { FileText, Video, Plus, Pencil, Trash2, X, Loader2, Star } from 'lucide-react'
+import { FileText, Video, Plus, Pencil, Trash2, X, Loader2, Star, UploadCloud, Link as LinkIcon } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
 type Role = 'STANDARD' | 'AURUM' | 'BOARDROOM'
 type FileType = 'EA_FILE' | 'SET_FILE' | 'PDF_GUIDE' | 'BROKER_SETTINGS'
@@ -50,6 +51,7 @@ const VIDEO_CATEGORIES = ['Getting Started', 'Risk Management', 'Scaling', 'Prop
 function DownloadModal({ item, eas, onClose }: { item?: Download; eas: EA[]; onClose: () => void }) {
   const qc = useQueryClient()
   const isEdit = !!item
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [name, setName] = useState(item?.name ?? '')
   const [description, setDescription] = useState(item?.description ?? '')
@@ -59,6 +61,43 @@ function DownloadModal({ item, eas, onClose }: { item?: Download; eas: EA[]; onC
   const [isLatest, setIsLatest] = useState(item?.isLatest ?? true)
   const [requiredRole, setRequiredRole] = useState<Role>(item?.requiredRole ?? 'STANDARD')
   const [eaId, setEaId] = useState(item?.ea?.id ?? '')
+  const [uploading, setUploading] = useState(false)
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null)
+  const [urlMode, setUrlMode] = useState(false) // toggle between upload and paste URL
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    try {
+      const supabase = createClient()
+      const ext = file.name.split('.').pop()
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+      const path = `ea-files/${Date.now()}-${safeName}`
+
+      const { error } = await supabase.storage
+        .from('ea-files')
+        .upload(path, file, { cacheControl: '3600', upsert: false })
+
+      if (error) throw error
+
+      const { data: { publicUrl } } = supabase.storage.from('ea-files').getPublicUrl(path)
+      setFileUrl(publicUrl)
+      setUploadedFileName(file.name)
+
+      // Auto-fill name if empty
+      if (!name) {
+        const baseName = file.name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ')
+        setName(baseName)
+      }
+    } catch (err) {
+      console.error('Upload failed:', err)
+      alert('Upload failed. Make sure the "ea-files" bucket exists in Supabase Storage.')
+    } finally {
+      setUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
 
   const save = useMutation({
     mutationFn: (body: object) => {
@@ -106,10 +145,77 @@ function DownloadModal({ item, eas, onClose }: { item?: Download; eas: EA[]; onC
               <input value={version} onChange={(e) => setVersion(e.target.value)} className="w-full rounded-lg px-3 py-2.5 text-[13px] outline-none" style={{ background: 'var(--bg-1)', border: '1px solid var(--border)', color: 'var(--text-1)' }} />
             </div>
           </div>
+
+          {/* File upload / URL section */}
           <div>
-            <label className="block text-[12px] font-semibold mb-1.5" style={{ color: 'var(--text-2)' }}>File URL *</label>
-            <input value={fileUrl} onChange={(e) => setFileUrl(e.target.value)} placeholder="https://…" className="w-full rounded-lg px-3 py-2.5 text-[13px] outline-none" style={{ background: 'var(--bg-1)', border: '1px solid var(--border)', color: 'var(--text-1)' }} />
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-[12px] font-semibold" style={{ color: 'var(--text-2)' }}>File *</label>
+              <button
+                type="button"
+                onClick={() => setUrlMode(!urlMode)}
+                className="text-[11px] flex items-center gap-1 transition-colors"
+                style={{ color: 'var(--text-3)' }}
+              >
+                {urlMode ? <><UploadCloud size={11} /> Upload instead</> : <><LinkIcon size={11} /> Paste URL instead</>}
+              </button>
+            </div>
+
+            {urlMode ? (
+              /* Manual URL input */
+              <input
+                value={fileUrl}
+                onChange={(e) => setFileUrl(e.target.value)}
+                placeholder="https://…"
+                className="w-full rounded-lg px-3 py-2.5 text-[13px] outline-none"
+                style={{ background: 'var(--bg-1)', border: '1px solid var(--border)', color: 'var(--text-1)' }}
+              />
+            ) : (
+              /* File upload button */
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  className="hidden"
+                  accept=".ex4,.ex5,.set,.pdf,.zip,.rar,.mq4,.mq5"
+                  onChange={handleFileUpload}
+                />
+                <div
+                  onClick={() => !uploading && fileInputRef.current?.click()}
+                  className="w-full rounded-lg px-4 py-4 text-center cursor-pointer transition-all"
+                  style={{
+                    background: 'var(--bg-1)',
+                    border: `2px dashed ${fileUrl && !urlMode ? 'var(--green)' : 'var(--border)'}`,
+                    color: 'var(--text-3)',
+                  }}
+                >
+                  {uploading ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <Loader2 size={16} className="animate-spin" style={{ color: 'var(--red)' }} />
+                      <span className="text-[13px]" style={{ color: 'var(--text-2)' }}>Uploading…</span>
+                    </div>
+                  ) : fileUrl && uploadedFileName ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <span className="text-green-400 text-[13px] font-semibold">✓ {uploadedFileName}</span>
+                      <span className="text-[11px]" style={{ color: 'var(--text-3)' }}>(click to replace)</span>
+                    </div>
+                  ) : fileUrl && isEdit ? (
+                    <div className="flex flex-col items-center gap-1">
+                      <UploadCloud size={20} />
+                      <span className="text-[12px]">Click to upload new file</span>
+                      <span className="text-[11px]" style={{ color: 'var(--green)' }}>Current file saved ✓</span>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center gap-1.5">
+                      <UploadCloud size={22} />
+                      <span className="text-[13px] font-medium" style={{ color: 'var(--text-2)' }}>Click to upload file</span>
+                      <span className="text-[11px]">.ex4 · .ex5 · .set · .pdf · .zip</span>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
           </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-[12px] font-semibold mb-1.5" style={{ color: 'var(--text-2)' }}>Required Role</label>
@@ -135,9 +241,9 @@ function DownloadModal({ item, eas, onClose }: { item?: Download; eas: EA[]; onC
           <button onClick={onClose} className="flex-1 py-2.5 rounded-[7px] text-[13px] font-semibold" style={{ background: 'var(--bg-1)', border: '1px solid var(--border)', color: 'var(--text-2)' }}>Cancel</button>
           <button
             onClick={() => save.mutate(body)}
-            disabled={save.isPending || !name || !fileUrl || !version}
+            disabled={save.isPending || uploading || !name || !fileUrl || !version}
             className="flex-1 py-2.5 rounded-[7px] text-[13px] font-semibold text-white flex items-center justify-center gap-2"
-            style={{ background: 'var(--red)', opacity: !name || !fileUrl ? 0.5 : 1 }}
+            style={{ background: 'var(--red)', opacity: !name || !fileUrl || uploading ? 0.5 : 1 }}
           >
             {save.isPending && <Loader2 size={14} className="animate-spin" />}
             {isEdit ? 'Save Changes' : 'Add Download'}
