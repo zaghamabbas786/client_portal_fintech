@@ -17,7 +17,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     <QueryProvider>
       <div className="flex min-h-screen" style={{ background: 'var(--bg-0)' }}>
         <SidebarWrapper user={userProfile} />
-        <main className="ml-[240px] flex-1 p-7 max-w-[calc(100vw-240px)]">
+        <main className="flex-1 p-4 sm:p-7 pt-16 lg:pt-7 lg:ml-[240px] lg:max-w-[calc(100vw-240px)]">
           {children}
         </main>
       </div>

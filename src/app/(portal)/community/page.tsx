@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { formatRelativeTime, getInitials, formatCurrencyDetailed } from '@/lib/utils'
-import { Heart, MessageSquare, Flag, Pin, ImagePlus, Send, Filter, ChevronDown, Loader2 } from 'lucide-react'
+import { Heart, MessageSquare, Flag, Pin, ImagePlus, Send, Filter, ChevronDown, Loader2, X } from 'lucide-react'
 import type { PostTag } from '@/types'
+import { createClient } from '@/lib/supabase/client'
 import {
   usePosts,
   useComments,
@@ -110,30 +111,79 @@ export default function CommunityPage() {
   const [content, setContent] = useState('')
   const [selectedTag, setSelectedTag] = useState<PostTag>('GENERAL')
   const [amount, setAmount] = useState('')
+  const [imageUrl, setImageUrl] = useState<string | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [uploading, setUploading] = useState(false)
   const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set())
   const [tagDropdownOpen, setTagDropdownOpen] = useState(false)
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const { data: posts = [], isLoading, isFetching } = usePosts(filterTag)
   const createPost = useCreatePost()
   const toggleLike = useToggleLike()
+
+  async function handleImagePick(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Show local preview immediately
+    const objectUrl = URL.createObjectURL(file)
+    setImagePreview(objectUrl)
+    setUploading(true)
+
+    try {
+      const supabase = createClient()
+      const ext = file.name.split('.').pop()
+      const path = `community/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+
+      const { error } = await supabase.storage
+        .from('community-images')
+        .upload(path, file, { cacheControl: '3600', upsert: false })
+
+      if (error) throw error
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('community-images')
+        .getPublicUrl(path)
+
+      setImageUrl(publicUrl)
+    } catch (err) {
+      console.error('Image upload failed:', err)
+      setImagePreview(null)
+      setImageUrl(null)
+    } finally {
+      setUploading(false)
+      // Reset input so the same file can be re-selected if needed
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  function removeImage() {
+    setImagePreview(null)
+    setImageUrl(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
 
   const showAmount = selectedTag === 'PAYOUT' || selectedTag === 'AURUM_RESULTS'
   const selectedTagMeta = POST_TAGS.find((t) => t.value === selectedTag)!
   const filterLabel = filterTag === 'ALL' ? 'All Posts' : tagMeta[filterTag as keyof typeof tagMeta]?.label ?? filterTag
 
   function handlePost() {
-    if (!content.trim() || createPost.isPending) return
+    if (!content.trim() || createPost.isPending || uploading) return
     createPost.mutate(
       {
         content: content.trim(),
         tag: selectedTag,
         amount: showAmount && amount ? amount : null,
+        imageUrl: imageUrl ?? null,
       },
       {
         onSuccess: () => {
           setContent('')
           setAmount('')
+          setImageUrl(null)
+          setImagePreview(null)
         },
       },
     )
@@ -181,6 +231,35 @@ export default function CommunityPage() {
           onBlur={(e) => (e.target.style.borderBottomColor = 'var(--border)')}
         />
 
+        {/* Image preview */}
+        {imagePreview && (
+          <div className="mb-3 relative inline-block">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={imagePreview}
+              alt="Attachment preview"
+              className="max-h-40 rounded-lg object-cover"
+              style={{ border: '1px solid var(--border)' }}
+            />
+            {uploading && (
+              <div className="absolute inset-0 flex items-center justify-center rounded-lg"
+                style={{ background: 'rgba(0,0,0,0.5)' }}>
+                <Loader2 size={20} className="animate-spin text-white" />
+              </div>
+            )}
+            {!uploading && (
+              <button
+                onClick={removeImage}
+                className="absolute top-1 right-1 rounded-full p-0.5 transition-colors"
+                style={{ background: 'rgba(0,0,0,0.7)', color: '#fff' }}
+                title="Remove image"
+              >
+                <X size={12} />
+              </button>
+            )}
+          </div>
+        )}
+
         <div className="flex items-center gap-3 flex-wrap">
           {/* Tag selector */}
           <div className="relative">
@@ -221,16 +300,33 @@ export default function CommunityPage() {
             />
           )}
 
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleImagePick}
+          />
+
           <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            title="Attach image"
             className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-[12px] transition-all"
-            style={{ color: 'var(--text-3)', border: '1px solid var(--border)' }}
+            style={{
+              color: imageUrl ? 'var(--red)' : uploading ? 'var(--text-3)' : 'var(--text-3)',
+              border: `1px solid ${imageUrl ? 'var(--red)' : 'var(--border)'}`,
+              opacity: uploading ? 0.6 : 1,
+            }}
           >
-            <ImagePlus size={13} />
+            {uploading ? <Loader2 size={13} className="animate-spin" /> : <ImagePlus size={13} />}
           </button>
 
           <button
             onClick={handlePost}
-            disabled={createPost.isPending || !content.trim()}
+            disabled={createPost.isPending || !content.trim() || uploading}
             className="ml-auto flex items-center gap-2 px-4 py-[7px] rounded-[7px] text-[12px] font-semibold text-white transition-all"
             style={{ background: createPost.isPending || !content.trim() ? '#7a1a18' : 'var(--red)', opacity: !content.trim() ? 0.5 : 1 }}
           >
@@ -342,6 +438,15 @@ export default function CommunityPage() {
 
                 {/* Post body */}
                 <p className="text-[14px] leading-relaxed mb-2" style={{ color: 'var(--text-1)' }}>{post.content}</p>
+                {(post as any).imageUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={(post as any).imageUrl}
+                    alt="Post attachment"
+                    className="rounded-lg max-h-64 object-cover mb-2 mt-1"
+                    style={{ border: '1px solid var(--border)', maxWidth: '100%' }}
+                  />
+                )}
                 {post.amount && (
                   <div className="font-mono text-[26px] font-bold my-2" style={{ color: 'var(--green)' }}>
                     {formatCurrencyDetailed(post.amount)}

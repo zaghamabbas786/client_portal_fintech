@@ -54,13 +54,13 @@ describe('GET /api/support', () => {
   it('returns 401 when unauthenticated', async () => {
     mockGetUser.mockResolvedValue({ data: { user: null } })
     const { GET } = await import('@/app/api/support/route')
-    const res = await GET(makeReq('GET', 'http://localhost/api/support'))
+    const res = await GET()
     expect(res.status).toBe(401)
   })
 
   it('returns tickets array', async () => {
     const { GET } = await import('@/app/api/support/route')
-    const res = await GET(makeReq('GET', 'http://localhost/api/support'))
+    const res = await GET()
     expect(res.status).toBe(200)
     const json = await res.json()
     expect(json).toHaveProperty('tickets')
@@ -69,7 +69,7 @@ describe('GET /api/support', () => {
 
   it('only returns tickets for the current user', async () => {
     const { GET } = await import('@/app/api/support/route')
-    await GET(makeReq('GET', 'http://localhost/api/support'))
+    await GET()
     expect(mockFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { userId: FAKE_PROFILE.id },

@@ -66,7 +66,7 @@ export default async function DownloadsPage() {
           <h2 className="text-[15px] font-semibold mb-3" style={{ color: 'var(--text-1)' }}>
             {eaName} Files
           </h2>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {(files as { id: string; name: string; description: string | null; fileType: string; isLatest: boolean; fileUrl?: string }[]).map((file) => {
               const meta = FILE_TYPE_META[file.fileType] ?? FILE_TYPE_META.EA_FILE
               const hasUrl = !!file.fileUrl

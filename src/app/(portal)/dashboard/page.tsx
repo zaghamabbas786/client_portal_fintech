@@ -141,7 +141,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Row 1: Community Highlights + Payout Leaderboard */}
-      <div className="grid grid-cols-2 gap-[14px] mb-[22px]">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-[14px] mb-[22px]">
 
         {/* Community Highlights */}
         <div
@@ -566,7 +566,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Row 3: Downloads + Education & Support */}
-      <div className="grid grid-cols-2 gap-[14px]">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-[14px]">
 
         {/* Downloads */}
         <div

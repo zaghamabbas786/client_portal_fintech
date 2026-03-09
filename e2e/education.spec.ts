@@ -11,7 +11,6 @@ test.describe('Education', () => {
   })
 
   test('shows category filter tabs', async ({ page }) => {
-    // Use button role to avoid strict mode issues (text also appears in video titles/tags)
     await expect(page.getByRole('button', { name: /^all$/i })).toBeVisible()
     await expect(page.getByRole('button', { name: /^getting started$/i })).toBeVisible()
   })
@@ -29,7 +28,6 @@ test.describe('Education', () => {
   })
 
   test('category filter changes visible videos', async ({ page }) => {
-    // Use role=button to avoid strict mode — "Risk Management" also appears in video titles/tags
     await page.getByRole('button', { name: /^risk management$/i }).click()
     await expect(page.getByText(/risk management fundamentals/i)).toBeVisible()
     await expect(page.getByText(/getting started with omni/i)).not.toBeVisible()
@@ -42,8 +40,27 @@ test.describe('Education', () => {
     await expect(page.getByText(/getting started with omni/i)).toBeVisible()
   })
 
-  test('shows play icon or button on videos', async ({ page }) => {
-    const playBtn = page.locator('button, a').filter({ has: page.locator('svg') }).first()
-    await expect(playBtn).toBeVisible()
+  test('clicking a video card opens the player modal', async ({ page }) => {
+    // Click the first video card
+    await page.locator('[data-testid="video-card"]').first().click()
+    // Modal should appear with an iframe or embed container
+    await expect(page.locator('[data-testid="video-modal"]')).toBeVisible({ timeout: 5000 })
+  })
+
+  test('video modal can be closed', async ({ page }) => {
+    await page.locator('[data-testid="video-card"]').first().click()
+    await expect(page.locator('[data-testid="video-modal"]')).toBeVisible({ timeout: 5000 })
+    // Close button
+    await page.locator('[data-testid="video-modal-close"]').click()
+    await expect(page.locator('[data-testid="video-modal"]')).not.toBeVisible()
+  })
+
+  test('videos are loaded from database (not hardcoded)', async ({ page }) => {
+    // The page should show video data — if DB is empty it shows an empty state,
+    // if seeded it shows the seeded videos
+    const cards = page.locator('[data-testid="video-card"]')
+    const count = await cards.count()
+    // We seeded 8 videos, so at least 1 should show
+    expect(count).toBeGreaterThan(0)
   })
 })

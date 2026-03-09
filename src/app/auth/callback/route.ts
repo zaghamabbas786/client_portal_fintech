@@ -26,8 +26,36 @@ export async function GET(request: NextRequest) {
       }
     )
 
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) {
+      // If a referral cookie is present, track the sign-up
+      const refCode = cookieStore.get('ref_code')?.value
+      if (refCode && data.user) {
+        try {
+          const { prisma } = await import('@/lib/prisma')
+          const sender = await prisma.user.findFirst({
+            where: { referralCode: refCode },
+            select: { id: true },
+          })
+          if (sender) {
+            const newUser = await prisma.user.findUnique({
+              where: { supabaseId: data.user.id },
+              select: { id: true },
+            })
+            if (newUser) {
+              await prisma.referral.create({
+                data: {
+                  senderId: sender.id,
+                  email: data.user.email ?? '',
+                  signedUp: true,
+                  convertedUserId: newUser.id,
+                },
+              }).catch(() => { /* ignore duplicate */ })
+              cookieStore.delete('ref_code')
+            }
+          }
+        } catch { /* referral tracking is non-critical */ }
+      }
       return NextResponse.redirect(`${origin}${next}`)
     }
   }

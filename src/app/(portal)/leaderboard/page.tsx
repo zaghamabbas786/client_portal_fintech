@@ -63,8 +63,9 @@ export default async function LeaderboardPage() {
         </div>
       </div>
 
+      <div className="overflow-x-auto rounded-[10px]">
       <div
-        className="rounded-[10px] overflow-hidden"
+        className="rounded-[10px] overflow-hidden min-w-[600px]"
         style={{ background: 'var(--bg-2)', border: '1px solid var(--border)' }}
       >
         {/* Table header */}
@@ -152,6 +153,7 @@ export default async function LeaderboardPage() {
             Learn More
           </a>
         </div>
+      </div>
       </div>
     </div>
   )

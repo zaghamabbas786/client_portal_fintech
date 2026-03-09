@@ -73,7 +73,7 @@ export function useComments(postId: string, enabled: boolean) {
 export function useCreatePost() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (body: { content: string; tag: string; amount: string | null }) =>
+    mutationFn: (body: { content: string; tag: string; amount: string | null; imageUrl?: string | null }) =>
       fetch('/api/community', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

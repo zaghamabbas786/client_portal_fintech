@@ -7,6 +7,7 @@ const createPostSchema = z.object({
   content: z.string().min(1).max(2000),
   tag: z.enum(['PAYOUT', 'AURUM_RESULTS', 'CHALLENGE_PASSED', 'GENERAL', 'QUESTION']),
   amount: z.string().optional().nullable(),
+  imageUrl: z.string().url().optional().nullable(),
 })
 
 export async function GET(request: NextRequest) {
@@ -61,7 +62,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid input', details: parsed.error.issues }, { status: 400 })
   }
 
-  const { content, tag, amount } = parsed.data
+  const { content, tag, amount, imageUrl } = parsed.data
 
   const post = await prisma.post.create({
     data: {
@@ -69,6 +70,7 @@ export async function POST(request: NextRequest) {
       content,
       tag,
       amount: amount ? parseFloat(amount) : null,
+      imageUrl: imageUrl ?? null,
     },
     include: {
       user: { select: { id: true, fullName: true, email: true, role: true } },

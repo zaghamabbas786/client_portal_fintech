@@ -87,7 +87,7 @@ export default function ReferralClient({ commissionRate, isBoardroom, referralLi
       </div>
 
       {/* Stats grid */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
           { label: 'REFERRALS SENT', value: stats.totalSent, icon: <ArrowRight size={16} />, color: 'var(--text-2)' },
           { label: 'SIGNED UP', value: stats.signedUp, icon: <Users size={16} />, color: 'var(--blue)' },

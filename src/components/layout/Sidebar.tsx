@@ -46,9 +46,10 @@ interface SidebarProps {
   user: UserProfile
   onSignOut: () => void
   signingOut?: boolean
+  onNavClick?: () => void
 }
 
-export default function Sidebar({ user, onSignOut, signingOut = false }: SidebarProps) {
+export default function Sidebar({ user, onSignOut, signingOut = false, onNavClick }: SidebarProps) {
   const pathname = usePathname()
   const isAurumOrAbove = user.role === 'AURUM' || user.role === 'BOARDROOM' || user.role === 'ADMIN'
   const isAdmin = user.role === 'ADMIN'
@@ -109,6 +110,7 @@ export default function Sidebar({ user, onSignOut, signingOut = false }: Sidebar
                     key={item.href}
                     href={isLocked ? '#' : item.href}
                     prefetch={!isLocked}
+                    onClick={isLocked ? undefined : onNavClick}
                     className={cn(
                       'flex items-center gap-[10px] px-5 py-[9px] text-[13px] font-medium transition-all duration-100 relative',
                       'border-l-[3px]',
@@ -155,6 +157,7 @@ export default function Sidebar({ user, onSignOut, signingOut = false }: Sidebar
             <Link
               href="/admin"
               prefetch={true}
+              onClick={onNavClick}
               className={cn(
                 'flex items-center gap-[10px] px-5 py-[9px] text-[13px] font-medium transition-all duration-100 relative border-l-[3px]',
                 pathname.startsWith('/admin')

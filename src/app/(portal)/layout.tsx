@@ -14,7 +14,8 @@ export default async function PortalLayout({ children }: { children: React.React
     <QueryProvider>
       <div className="flex min-h-screen" style={{ background: 'var(--bg-0)' }}>
         <SidebarWrapper user={userProfile} />
-        <main className="ml-[240px] flex-1 p-7 max-w-[calc(100vw-240px)]">
+        {/* On mobile: no left margin (sidebar overlays). On desktop: offset by sidebar width */}
+        <main className="flex-1 p-4 sm:p-7 pt-16 lg:pt-7 lg:ml-[240px] lg:max-w-[calc(100vw-240px)]">
           {children}
         </main>
       </div>
