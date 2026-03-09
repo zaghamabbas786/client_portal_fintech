@@ -1,40 +1,38 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Settings, Loader2, Check, Camera } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useSettings, useUpdateSettings, useUpdateAvatar } from '@/hooks/useSettings'
 
 export default function SettingsPage() {
+  const [saved, setSaved] = useState(false)
+  const [avatarUploading, setAvatarUploading] = useState(false)
+  const avatarInputRef = useRef<HTMLInputElement>(null)
+
+  const { data: user, isLoading, isFetching } = useSettings()
+  const updateSettings = useUpdateSettings()
+  const updateAvatar = useUpdateAvatar()
+
   const [fullName, setFullName] = useState('')
-  const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [emailNotifications, setEmailNotifications] = useState(true)
   const [communityAlerts, setCommunityAlerts] = useState(true)
   const [payoutUpdates, setPayoutUpdates] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [avatarUploading, setAvatarUploading] = useState(false)
 
-  const avatarInputRef = useRef<HTMLInputElement>(null)
-
+  // Sync form state when user data loads (from cache or network)
   useEffect(() => {
-    fetch('/api/settings')
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.user) {
-          setFullName(data.user.fullName || '')
-          setEmail(data.user.email || '')
-          setPhone(data.user.phone || '')
-          setAvatarUrl(data.user.avatarUrl || null)
-          setEmailNotifications(data.user.emailNotifications ?? true)
-          setCommunityAlerts(data.user.communityAlerts ?? true)
-          setPayoutUpdates(data.user.payoutUpdates ?? true)
-        }
-        setLoading(false)
-      })
-  }, [])
+    if (user) {
+      setFullName(user.fullName || '')
+      setPhone(user.phone || '')
+      setEmailNotifications(user.emailNotifications ?? true)
+      setCommunityAlerts(user.communityAlerts ?? true)
+      setPayoutUpdates(user.payoutUpdates ?? true)
+    }
+  }, [user])
+
+  const avatarUrl = user?.avatarUrl ?? null
+  const email = user?.email ?? ''
 
   async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -53,15 +51,7 @@ export default function SettingsPage() {
       if (error) throw error
 
       const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
-
-      // Save immediately to DB
-      await fetch('/api/settings', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ avatarUrl: publicUrl }),
-      })
-
-      setAvatarUrl(publicUrl)
+      await updateAvatar.mutateAsync(publicUrl)
     } catch (err) {
       console.error('Avatar upload failed:', err)
       alert('Upload failed. Make sure the "avatars" bucket exists in Supabase Storage (public bucket).')
@@ -73,18 +63,18 @@ export default function SettingsPage() {
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
-    setSaving(true)
-
-    const res = await fetch('/api/settings', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fullName, phone, emailNotifications, communityAlerts, payoutUpdates }),
-    })
-
-    setSaving(false)
-    if (res.ok) {
+    try {
+      await updateSettings.mutateAsync({
+        fullName,
+        phone,
+        emailNotifications,
+        communityAlerts,
+        payoutUpdates,
+      })
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
+    } catch {
+      // Error handled by mutation
     }
   }
 
@@ -112,7 +102,7 @@ export default function SettingsPage() {
     )
   }
 
-  if (loading) {
+  if (isLoading && !user) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 size={24} className="animate-spin" style={{ color: 'var(--text-3)' }} />
@@ -120,15 +110,25 @@ export default function SettingsPage() {
     )
   }
 
+  const saving = updateSettings.isPending
+
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-[22px] font-bold mb-1 flex items-center gap-2" style={{ color: 'var(--text-1)' }}>
-          <Settings size={20} style={{ color: 'var(--text-2)' }} /> Settings
-        </h1>
-        <p className="text-[13px]" style={{ color: 'var(--text-2)' }}>
-          Manage your profile and preferences.
-        </p>
+      <div className="mb-6 flex items-center gap-3">
+        <div>
+          <h1 className="text-[22px] font-bold mb-1 flex items-center gap-2" style={{ color: 'var(--text-1)' }}>
+            <Settings size={20} style={{ color: 'var(--text-2)' }} /> Settings
+          </h1>
+          <p className="text-[13px]" style={{ color: 'var(--text-2)' }}>
+            Manage your profile and preferences.
+          </p>
+        </div>
+        {isFetching && !isLoading && (
+          <div className="flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--text-3)' }}>
+            <Loader2 size={12} className="animate-spin" />
+            Updating…
+          </div>
+        )}
       </div>
 
       <form onSubmit={handleSave} className="max-w-[540px]">
@@ -143,7 +143,6 @@ export default function SettingsPage() {
 
           {/* Avatar upload */}
           <div className="mb-5 flex items-center gap-4">
-            {/* Hidden file input */}
             <input
               ref={avatarInputRef}
               type="file"
@@ -152,7 +151,6 @@ export default function SettingsPage() {
               onChange={handleAvatarUpload}
             />
 
-            {/* Avatar circle — click to upload */}
             <button
               type="button"
               onClick={() => !avatarUploading && avatarInputRef.current?.click()}
@@ -169,7 +167,6 @@ export default function SettingsPage() {
                 </span>
               )}
 
-              {/* Overlay on hover */}
               <div
                 className="absolute inset-0 flex flex-col items-center justify-center gap-0.5 transition-opacity"
                 style={{
@@ -177,10 +174,7 @@ export default function SettingsPage() {
                   opacity: avatarUploading ? 1 : 0,
                 }}
               >
-                {avatarUploading
-                  ? <Loader2 size={18} className="animate-spin text-white" />
-                  : null
-                }
+                {avatarUploading && <Loader2 size={18} className="animate-spin text-white" />}
               </div>
               <div
                 className="absolute inset-0 flex flex-col items-center justify-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
