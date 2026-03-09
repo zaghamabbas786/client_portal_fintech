@@ -3,6 +3,7 @@
  * DELETE /api/admin/users/[id]/eas/[eaId]  – revoke license
  */
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidateTag } from 'next/cache'
 import { requireAdmin } from '@/lib/admin-auth'
 import { prisma } from '@/lib/prisma'
 
@@ -26,6 +27,9 @@ export async function PATCH(
     include: { ea: true },
   })
 
+  revalidateTag('user-eas')
+  revalidateTag(`user-eas-${userId}`)
+
   return NextResponse.json({ userEA })
 }
 
@@ -41,6 +45,9 @@ export async function DELETE(
   await prisma.userEA.delete({
     where: { userId_eaId: { userId, eaId } },
   })
+
+  revalidateTag('user-eas')
+  revalidateTag(`user-eas-${userId}`)
 
   return NextResponse.json({ ok: true })
 }

@@ -84,16 +84,17 @@ export const getCachedCommunityHighlights = unstable_cache(
 
 // ─── User-specific data (keyed by userId) ─────────────────────────────────────
 
-/** EAs assigned to a user. */
-export const getCachedUserEAs = unstable_cache(
-  async (userId: string) =>
-    prisma.userEA.findMany({
-      where: { userId },
-      include: { ea: true },
-    }),
-  ['user-eas'],
-  { revalidate: 120, tags: ['user-eas'] },
-)
+/** EAs assigned to a user. Cache key includes userId so each user gets their own entry. */
+export const getCachedUserEAs = (userId: string) =>
+  unstable_cache(
+    async () =>
+      prisma.userEA.findMany({
+        where: { userId },
+        include: { ea: true },
+      }),
+    [`user-eas-${userId}`],
+    { revalidate: 30, tags: ['user-eas', `user-eas-${userId}`] },
+  )()
 
 /** Latest support tickets for a user. */
 export const getCachedUserTickets = unstable_cache(

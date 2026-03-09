@@ -3,6 +3,7 @@
  * POST /api/admin/users/[id]/eas  – assign a new EA license
  */
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidateTag } from 'next/cache'
 import { requireAdmin } from '@/lib/admin-auth'
 import { prisma } from '@/lib/prisma'
 
@@ -58,6 +59,10 @@ export async function POST(
     },
     include: { ea: true },
   })
+
+  // Bust the server cache so the user sees the change immediately on My EAs
+  revalidateTag('user-eas')
+  revalidateTag(`user-eas-${userId}`)
 
   return NextResponse.json({ userEA }, { status: 201 })
 }
