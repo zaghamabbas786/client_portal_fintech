@@ -67,6 +67,17 @@ export const getCachedLeaderboard = unstable_cache(
   { revalidate: 120, tags: ['leaderboard'] },
 )
 
+/** Count of new community posts (last 7 days) for sidebar badge. */
+export const getCachedCommunityNewCount = unstable_cache(
+  async () => {
+    const since = new Date()
+    since.setDate(since.getDate() - 7)
+    return prisma.post.count({ where: { createdAt: { gte: since } } })
+  },
+  ['community-new-count'],
+  { revalidate: 60, tags: ['community'] },
+)
+
 /** Community highlights (latest 4 posts for dashboard). */
 export const getCachedCommunityHighlights = unstable_cache(
   async () =>

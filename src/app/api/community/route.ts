@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidateTag } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
@@ -86,6 +87,8 @@ export async function POST(request: NextRequest) {
       _count: { select: { likes: true, comments: true } },
     },
   })
+
+  revalidateTag('community')
 
   const { amount: postAmount, createdAt, updatedAt, ...postRest } = post
   return NextResponse.json({

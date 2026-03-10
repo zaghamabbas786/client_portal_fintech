@@ -18,6 +18,7 @@ import {
   Lock,
   LogOut,
   Loader2,
+  X,
 } from 'lucide-react'
 
 interface NavItem {
@@ -31,7 +32,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={15} />, section: 'main' },
-  { href: '/community', label: 'Community', icon: <MessageSquare size={15} />, badge: 5, section: 'main' },
+  { href: '/community', label: 'Community', icon: <MessageSquare size={15} />, section: 'main' },
   { href: '/leaderboard', label: 'Leaderboard', icon: <Trophy size={15} />, section: 'main' },
   { href: '/my-eas', label: 'My EAs', icon: <KeyRound size={15} />, section: 'main' },
   { href: '/downloads', label: 'Downloads', icon: <FolderDown size={15} />, section: 'resources' },
@@ -47,9 +48,18 @@ interface SidebarProps {
   onSignOut: () => void
   signingOut?: boolean
   onNavClick?: () => void
+  showMobileClose?: boolean
+  communityNewCount?: number
 }
 
-export default function Sidebar({ user, onSignOut, signingOut = false, onNavClick }: SidebarProps) {
+export default function Sidebar({
+  user,
+  onSignOut,
+  signingOut = false,
+  onNavClick,
+  showMobileClose = false,
+  communityNewCount = 0,
+}: SidebarProps) {
   const pathname = usePathname()
   const isAurumOrAbove = user.role === 'AURUM' || user.role === 'BOARDROOM' || user.role === 'ADMIN'
   const isAdmin = user.role === 'ADMIN'
@@ -65,26 +75,37 @@ export default function Sidebar({ user, onSignOut, signingOut = false, onNavClic
 
   return (
     <aside
-      className="fixed top-0 left-0 h-screen w-[240px] flex flex-col z-20"
+      className="h-screen flex flex-col z-20 w-full min-w-0"
       style={{ background: 'var(--bg-1)', borderRight: '1px solid var(--border)' }}
     >
-      {/* Logo */}
-      <div className="px-5 py-[18px]" style={{ borderBottom: '1px solid var(--border)' }}>
-        <div className="flex items-center gap-[10px]">
+      {/* Logo + mobile close button */}
+      <div className="px-5 py-[18px] flex-shrink-0" style={{ borderBottom: '1px solid var(--border)' }}>
+        <div className="flex items-center gap-[10px] min-w-0">
           <div
             className="w-8 h-8 rounded-[7px] flex items-center justify-center font-black text-base text-white flex-shrink-0"
             style={{ background: 'var(--red)' }}
           >
             E
           </div>
-          <div>
-            <div className="text-[13px] font-bold tracking-[0.3px] leading-tight" style={{ color: 'var(--text-1)' }}>
+          <div className="min-w-0 flex-1">
+            <div className="text-[13px] font-bold tracking-[0.3px] leading-tight truncate" style={{ color: 'var(--text-1)' }}>
               EOS CAPITAL TECH
             </div>
-            <div className="text-[10px]" style={{ color: 'var(--text-3)' }}>
+            <div className="text-[10px] truncate" style={{ color: 'var(--text-3)' }}>
               Client Portal
             </div>
           </div>
+          {/* Mobile close button — only when sidebar is open on mobile */}
+          {showMobileClose && (
+            <button
+              onClick={onNavClick}
+              className="lg:hidden w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors hover:bg-[var(--bg-2)]"
+              style={{ color: 'var(--text-2)' }}
+              aria-label="Close menu"
+            >
+              <X size={18} />
+            </button>
+          )}
         </div>
       </div>
 
@@ -127,12 +148,12 @@ export default function Sidebar({ user, onSignOut, signingOut = false, onNavClic
                   >
                     <span className="w-[18px] text-center flex-shrink-0">{item.icon}</span>
                     <span>{item.label}</span>
-                    {item.badge && !isLocked && (
+                    {item.href === '/community' && communityNewCount > 0 && !isLocked && (
                       <span
                         className="absolute right-[14px] text-white text-[10px] font-bold px-[6px] py-[1px] rounded-full"
                         style={{ background: 'var(--red)' }}
                       >
-                        {item.badge}
+                        {communityNewCount > 99 ? '99+' : communityNewCount}
                       </span>
                     )}
                     {isLocked && (
@@ -179,7 +200,7 @@ export default function Sidebar({ user, onSignOut, signingOut = false, onNavClic
       </nav>
 
       {/* User Footer */}
-      <div className="px-5 py-[14px]" style={{ borderTop: '1px solid var(--border)' }}>
+      <div className="px-5 py-[14px] flex-shrink-0" style={{ borderTop: '1px solid var(--border)' }}>
         <div className="flex items-center gap-[9px]">
           <div
             className="w-[30px] h-[30px] rounded-full flex items-center justify-center font-bold text-[12px] text-white flex-shrink-0"

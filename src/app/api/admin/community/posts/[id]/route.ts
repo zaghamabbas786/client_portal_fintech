@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidateTag } from 'next/cache'
 import { requireAdmin } from '@/lib/admin-auth'
 import { prisma } from '@/lib/prisma'
 
@@ -24,6 +25,7 @@ export async function PATCH(
   }
 
   const post = await prisma.post.update({ where: { id }, data })
+  revalidateTag('community')
   return NextResponse.json({ post })
 }
 
@@ -37,5 +39,6 @@ export async function DELETE(
 
   const { id } = await params
   await prisma.post.delete({ where: { id } })
+  revalidateTag('community')
   return NextResponse.json({ ok: true })
 }

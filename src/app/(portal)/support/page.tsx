@@ -1,10 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { Ticket, Plus, X, Loader2 } from 'lucide-react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Ticket, Plus, X, Loader2, Send } from 'lucide-react'
 import { formatRelativeTime } from '@/lib/utils'
-import { useTickets, useCreateTicket } from '@/hooks/useSupport'
+import { useTickets, useCreateTicket, supportKeys } from '@/hooks/useSupport'
 
 interface Reply {
   id: string
@@ -25,12 +25,32 @@ interface TicketDetail {
 }
 
 function TicketDetailModal({ ticketId, onClose }: { ticketId: string; onClose: () => void }) {
+  const qc = useQueryClient()
+  const [reply, setReply] = useState('')
+
   const { data, isLoading } = useQuery({
     queryKey: ['support', 'ticket', ticketId],
     queryFn: async (): Promise<{ ticket: TicketDetail }> => {
       const res = await fetch(`/api/support/${ticketId}`)
       if (!res.ok) throw new Error('Failed to load ticket')
       return res.json()
+    },
+  })
+
+  const sendReply = useMutation({
+    mutationFn: (content: string) =>
+      fetch(`/api/support/${ticketId}/reply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content }),
+      }).then((r) => {
+        if (!r.ok) return r.json().then((d) => { throw new Error(d.error || 'Failed to send') })
+        return r.json()
+      }),
+    onSuccess: () => {
+      setReply('')
+      qc.invalidateQueries({ queryKey: ['support', 'ticket', ticketId] })
+      qc.invalidateQueries({ queryKey: supportKeys.tickets() })
     },
   })
 
@@ -49,6 +69,7 @@ function TicketDetailModal({ ticketId, onClose }: { ticketId: string; onClose: (
         {isLoading ? (
           <div className="flex items-center justify-center py-16"><Loader2 size={24} className="animate-spin" style={{ color: 'var(--text-3)' }} /></div>
         ) : ticket ? (
+          <>
           <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
             {/* Original message */}
             <div className="rounded-lg p-4" style={{ background: 'var(--bg-1)', border: '1px solid var(--border)' }}>
@@ -81,6 +102,31 @@ function TicketDetailModal({ ticketId, onClose }: { ticketId: string; onClose: (
               </div>
             ))}
           </div>
+
+          {/* Reply input */}
+          <div className="px-6 py-4 flex-shrink-0" style={{ borderTop: '1px solid var(--border)' }}>
+            <div className="flex gap-3">
+              <textarea
+                value={reply}
+                onChange={(e) => setReply(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && e.metaKey) sendReply.mutate(reply) }}
+                placeholder="Write a reply… (⌘+Enter to send)"
+                rows={2}
+                className="flex-1 rounded-lg px-3 py-2.5 text-[13px] outline-none resize-none"
+                style={{ background: 'var(--bg-1)', border: '1px solid var(--border)', color: 'var(--text-1)' }}
+              />
+              <button
+                onClick={() => sendReply.mutate(reply)}
+                disabled={!reply.trim() || sendReply.isPending}
+                className="px-4 rounded-lg flex items-center gap-2 text-[13px] font-semibold text-white self-end py-2.5 transition-all"
+                style={{ background: !reply.trim() ? '#7a1a18' : 'var(--red)', opacity: !reply.trim() ? 0.5 : 1 }}
+              >
+                {sendReply.isPending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                Reply
+              </button>
+            </div>
+          </div>
+          </>
         ) : null}
       </div>
     </div>
