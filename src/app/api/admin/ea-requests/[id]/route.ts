@@ -20,7 +20,11 @@ export async function PATCH(
     return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
   }
 
-  const request = await prisma.eARequest.update({
+  const delegate = (prisma as { eARequest?: { update: (args: object) => Promise<{ userId: string }> } }).eARequest
+  if (!delegate) {
+    return NextResponse.json({ error: 'EARequest model not available.' }, { status: 503 })
+  }
+  const request = await delegate.update({
     where: { id },
     data: { status },
   })

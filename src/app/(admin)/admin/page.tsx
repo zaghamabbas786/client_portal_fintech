@@ -5,13 +5,19 @@ import Link from 'next/link'
 
 export const metadata: Metadata = { title: 'Admin Panel' }
 
+async function getPendingEARequests(): Promise<number> {
+  const delegate = (prisma as { eARequest?: { count: (args: object) => Promise<number> } }).eARequest
+  if (!delegate) return 0
+  return delegate.count({ where: { status: 'PENDING' } })
+}
+
 export default async function AdminPage() {
   const [totalUsers, totalPosts, openTickets, totalDownloads, pendingEARequests] = await Promise.all([
     prisma.user.count(),
     prisma.post.count(),
     prisma.supportTicket.count({ where: { status: { not: 'RESOLVED' } } }),
     prisma.download.count(),
-    prisma.eARequest.count({ where: { status: 'PENDING' } }),
+    getPendingEARequests(),
   ])
 
   const recentUsers = await prisma.user.findMany({
