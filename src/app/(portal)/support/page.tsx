@@ -1,9 +1,91 @@
 'use client'
 
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Ticket, Plus, X, Loader2 } from 'lucide-react'
 import { formatRelativeTime } from '@/lib/utils'
 import { useTickets, useCreateTicket } from '@/hooks/useSupport'
+
+interface Reply {
+  id: string
+  content: string
+  isAdmin: boolean
+  createdAt: string
+  user: { fullName: string | null; email: string }
+}
+
+interface TicketDetail {
+  id: string
+  subject: string
+  description: string
+  priority: string
+  status: string
+  createdAt: string
+  replies: Reply[]
+}
+
+function TicketDetailModal({ ticketId, onClose }: { ticketId: string; onClose: () => void }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ['support', 'ticket', ticketId],
+    queryFn: async (): Promise<{ ticket: TicketDetail }> => {
+      const res = await fetch(`/api/support/${ticketId}`)
+      if (!res.ok) throw new Error('Failed to load ticket')
+      return res.json()
+    },
+  })
+
+  const ticket = data?.ticket
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)' }}>
+      <div className="w-full max-w-2xl rounded-xl flex flex-col" style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', maxHeight: '85vh' }}>
+        <div className="flex items-center justify-between px-6 py-4 flex-shrink-0" style={{ borderBottom: '1px solid var(--border)' }}>
+          <h2 className="text-[15px] font-bold" style={{ color: 'var(--text-1)' }}>
+            {ticket?.subject ?? 'Loading…'}
+          </h2>
+          <button onClick={onClose} style={{ color: 'var(--text-3)' }}><X size={18} /></button>
+        </div>
+
+        {isLoading ? (
+          <div className="flex items-center justify-center py-16"><Loader2 size={24} className="animate-spin" style={{ color: 'var(--text-3)' }} /></div>
+        ) : ticket ? (
+          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+            {/* Original message */}
+            <div className="rounded-lg p-4" style={{ background: 'var(--bg-1)', border: '1px solid var(--border)' }}>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-[12px] font-semibold" style={{ color: 'var(--text-1)' }}>You</span>
+                <span className="text-[10px]" style={{ color: 'var(--text-3)' }}>{formatRelativeTime(ticket.createdAt)}</span>
+              </div>
+              <p className="text-[13px] leading-relaxed" style={{ color: 'var(--text-2)' }}>{ticket.description}</p>
+            </div>
+
+            {/* Replies */}
+            {ticket.replies.map((r) => (
+              <div
+                key={r.id}
+                className="rounded-lg p-4"
+                style={{
+                  background: r.isAdmin ? 'rgba(229,57,53,0.06)' : 'var(--bg-1)',
+                  border: r.isAdmin ? '1px solid rgba(229,57,53,0.2)' : '1px solid var(--border)',
+                  marginLeft: r.isAdmin ? '24px' : '0',
+                }}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-[12px] font-semibold" style={{ color: r.isAdmin ? 'var(--red)' : 'var(--text-1)' }}>
+                    {r.user.fullName || r.user.email.split('@')[0]}
+                    {r.isAdmin && <span className="ml-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'var(--red-s)', color: 'var(--red)' }}>ADMIN</span>}
+                  </span>
+                  <span className="text-[10px]" style={{ color: 'var(--text-3)' }}>{formatRelativeTime(r.createdAt)}</span>
+                </div>
+                <p className="text-[13px] leading-relaxed" style={{ color: 'var(--text-2)' }}>{r.content}</p>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  )
+}
 
 const STATUS_META = {
   OPEN: { label: 'Open', bg: 'var(--blue-s)', color: 'var(--blue)' },
@@ -19,6 +101,7 @@ const PRIORITY_META = {
 
 export default function SupportPage() {
   const [showForm, setShowForm] = useState(false)
+  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null)
   const [subject, setSubject] = useState('')
   const [description, setDescription] = useState('')
   const [priority, setPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH'>('MEDIUM')
@@ -165,6 +248,7 @@ export default function SupportPage() {
             return (
               <div
                 key={ticket.id}
+                onClick={() => setSelectedTicketId(ticket.id)}
                 className="rounded-[10px] px-5 py-4 flex items-center justify-between gap-4 cursor-pointer transition-all hover:border-[#333345]"
                 style={{ background: 'var(--bg-2)', border: '1px solid var(--border)' }}
               >
@@ -189,6 +273,13 @@ export default function SupportPage() {
             )
           })}
         </div>
+      )}
+
+      {selectedTicketId && (
+        <TicketDetailModal
+          ticketId={selectedTicketId}
+          onClose={() => setSelectedTicketId(null)}
+        />
       )}
     </div>
   )
