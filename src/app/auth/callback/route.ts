@@ -29,8 +29,11 @@ export async function GET(request: NextRequest) {
 
     const { data, error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) {
-      // Referral: prefer ref from URL (survives email redirect), fallback to cookie
-      const refCode = searchParams.get('ref') || cookieStore.get('ref_code')?.value
+      // Referral: URL param > cookie > user_metadata (stored at signup, survives redirect)
+      const refCode =
+        searchParams.get('ref') ||
+        cookieStore.get('ref_code')?.value ||
+        (data.user?.user_metadata?.ref as string | undefined)
       if (refCode && data.user) {
         try {
           const { prisma } = await import('@/lib/prisma')
@@ -63,11 +66,13 @@ export async function GET(request: NextRequest) {
                 signedUp: true,
                 convertedUserId: newUser.id,
               },
-            }).catch(() => { /* ignore duplicate */ })
+            })
             cookieStore.delete('ref_code')
             revalidateTag('referrals')
           }
-        } catch { /* referral tracking is non-critical */ }
+        } catch (err) {
+          console.error('[auth/callback] Referral tracking failed:', err)
+        }
       }
       return NextResponse.redirect(`${origin}${next}`)
     }

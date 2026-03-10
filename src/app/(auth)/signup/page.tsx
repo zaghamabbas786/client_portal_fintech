@@ -41,7 +41,10 @@ function SignupForm() {
       email,
       password,
       options: {
-        data: { full_name: fullName },
+        data: {
+          full_name: fullName,
+          ...(refFromUrl && { ref: refFromUrl }), // Survives email redirect - callback reads from user_metadata
+        },
         emailRedirectTo: callbackUrl,
       },
     })
