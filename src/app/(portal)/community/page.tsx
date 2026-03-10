@@ -2,15 +2,13 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { formatRelativeTime, getInitials, formatCurrencyDetailed } from '@/lib/utils'
-import { Heart, MessageSquare, Flag, Pin, ImagePlus, Send, Filter, ChevronDown, Loader2, X } from 'lucide-react'
+import { Heart, Flag, Pin, ImagePlus, Send, Filter, ChevronDown, Loader2, X } from 'lucide-react'
 import type { PostTag } from '@/types'
 import { createClient } from '@/lib/supabase/client'
 import {
   useInfinitePosts,
-  useComments,
   useCreatePost,
   useToggleLike,
-  useAddComment,
 } from '@/hooks/useCommunity'
 
 const POST_TAGS = [
@@ -37,73 +35,6 @@ const avatarGradients = [
   'linear-gradient(135deg,#AB47BC,#6a1b9a)',
 ]
 
-// ─── Comment section for a single post ───────────────────────────────────────
-
-function CommentsSection({ postId }: { postId: string }) {
-  const [input, setInput] = useState('')
-  const { data: comments = [], isLoading } = useComments(postId, true)
-  const addComment = useAddComment()
-
-  function submit() {
-    const text = input.trim()
-    if (!text || addComment.isPending) return
-    addComment.mutate({ postId, content: text }, { onSuccess: () => setInput('') })
-  }
-
-  return (
-    <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
-      {isLoading ? (
-        <div className="flex items-center gap-2 py-2" style={{ color: 'var(--text-3)' }}>
-          <Loader2 size={12} className="animate-spin" />
-          <span className="text-[12px]">Loading comments…</span>
-        </div>
-      ) : (
-        comments.map((c) => (
-          <div key={c.id} className="flex gap-2 mb-2">
-            <div
-              className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0 mt-0.5"
-              style={{ background: 'linear-gradient(135deg,#9090a8,#606078)' }}
-            >
-              {getInitials(c.user.fullName || c.user.email)}
-            </div>
-            <div className="flex-1 rounded-lg px-3 py-2" style={{ background: 'var(--bg-1)' }}>
-              <div className="flex items-center gap-2 mb-0.5">
-                <span className="text-[11px] font-semibold" style={{ color: 'var(--text-1)' }}>
-                  {c.user.fullName || c.user.email.split('@')[0]}
-                </span>
-                <span className="text-[10px]" style={{ color: 'var(--text-3)' }}>
-                  {formatRelativeTime(c.createdAt)}
-                </span>
-              </div>
-              <p className="text-[12px]" style={{ color: 'var(--text-2)' }}>{c.content}</p>
-            </div>
-          </div>
-        ))
-      )}
-
-      <div className="flex gap-2 mt-2">
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && submit()}
-          placeholder="Write a comment..."
-          className="flex-1 rounded-lg px-3 py-2 text-[12px] outline-none"
-          style={{ background: 'var(--bg-1)', border: '1px solid var(--border)', color: 'var(--text-1)' }}
-        />
-        <button
-          onClick={submit}
-          disabled={addComment.isPending}
-          className="px-3 py-2 rounded-lg transition-all flex items-center justify-center"
-          style={{ background: 'var(--red)', color: '#fff', opacity: addComment.isPending ? 0.7 : 1, minWidth: '38px' }}
-        >
-          {addComment.isPending ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
-        </button>
-      </div>
-    </div>
-  )
-}
-
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function CommunityPage() {
@@ -115,7 +46,6 @@ export default function CommunityPage() {
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState(false)
-  const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set())
   const [tagDropdownOpen, setTagDropdownOpen] = useState(false)
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -231,14 +161,6 @@ export default function CommunityPage() {
         },
       },
     )
-  }
-
-  function toggleComments(postId: string) {
-    setExpandedComments((prev) => {
-      const next = new Set(prev)
-      next.has(postId) ? next.delete(postId) : next.add(postId)
-      return next
-    })
   }
 
   return (
@@ -474,7 +396,6 @@ export default function CommunityPage() {
             const isAurum = post.tag === 'AURUM_RESULTS'
             const isPayout = post.tag === 'PAYOUT'
             const postUser = post.user.fullName || post.user.email.split('@')[0]
-            const isExpanded = expandedComments.has(post.id)
 
             return (
               <div
@@ -548,22 +469,12 @@ export default function CommunityPage() {
                     {post._count.likes}
                   </button>
                   <button
-                    onClick={() => toggleComments(post.id)}
-                    className="flex items-center gap-1.5 text-[12px] transition-colors hover:opacity-80"
-                    style={{ color: isExpanded ? 'var(--blue)' : 'var(--text-3)' }}
-                  >
-                    <MessageSquare size={14} />
-                    {post._count.comments}
-                  </button>
-                  <button
                     className="ml-auto text-[11px] flex items-center gap-1 transition-colors hover:opacity-80"
                     style={{ color: 'var(--text-3)' }}
                   >
                     <Flag size={12} /> Report
                   </button>
                 </div>
-
-                {isExpanded && <CommentsSection postId={post.id} />}
               </div>
             )
           })}

@@ -96,15 +96,45 @@ export const getCachedCommunityHighlights = unstable_cache(
 // ─── User-specific data (keyed by userId) ─────────────────────────────────────
 
 /** EAs assigned to a user. Cache key includes userId so each user gets their own entry. */
-export const getCachedUserEAs = (userId: string) =>
+export const getCachedUserEAs = (userId: string, allowedRoles?: string[]) =>
   unstable_cache(
     async () =>
       prisma.userEA.findMany({
         where: { userId },
-        include: { ea: true },
+        include: {
+          ea: {
+            include: {
+              downloads: {
+                where: {
+                  fileType: 'EA_FILE',
+                  ...(allowedRoles?.length
+                    ? { requiredRole: { in: allowedRoles as ('STANDARD' | 'AURUM' | 'BOARDROOM' | 'ADMIN')[] } }
+                    : {}),
+                },
+                orderBy: [{ isLatest: 'desc' }, { createdAt: 'desc' }],
+                take: 1,
+              },
+            },
+          },
+        },
       }),
-    [`user-eas-${userId}`],
-    { revalidate: 30, tags: ['user-eas', `user-eas-${userId}`] },
+    [`user-eas-${userId}`, allowedRoles?.join(',') ?? 'all'],
+    { revalidate: 30, tags: ['user-eas', `user-eas-${userId}`, 'downloads'] },
+  )()
+
+/** EA requests submitted by a user. */
+export const getCachedUserEARequests = (userId: string) =>
+  unstable_cache(
+    async () => {
+      const delegate = (prisma as { eARequest?: { findMany: (args: object) => Promise<{ id: string; eaName: string | null; message: string; status: string; createdAt: Date }[]> } }).eARequest
+      if (!delegate) return []
+      return delegate.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+      })
+    },
+    [`user-ea-requests-${userId}`],
+    { revalidate: 60, tags: ['ea-requests', `user-ea-requests-${userId}`] },
   )()
 
 /** Latest support tickets for a user. */

@@ -15,17 +15,6 @@ import { ArrowRight, Lock, Download, Play, Plus } from 'lucide-react'
 
 export const metadata: Metadata = { title: 'Dashboard' }
 
-// ─── Mock ticker items (replaced by DB in production) ────────────────────────
-const TICKER_ITEMS = [
-  { name: 'Marcus T.', system: 'Aurum', amount: 4218 },
-  { name: 'James R.', system: 'Omni', amount: 1847 },
-  { name: 'Karen W.', system: 'Aurum', text: 'Just activated Aurum 🚀' },
-  { name: 'Larry O.', system: 'Aurum', amount: 5604 },
-  { name: 'Sarah B.', system: 'Omni', amount: 3210 },
-  { name: 'Gio A.', system: 'Aurum', amount: 8613 },
-  { name: 'Dave H.', system: 'Omni', text: 'Challenge passed ✅' },
-]
-
 export default async function DashboardPage() {
   const userProfile = await getUserProfile()
   if (!userProfile) return null
@@ -107,38 +96,15 @@ export default async function DashboardPage() {
         </a>
       </div>
 
-      {/* Live Results Ticker */}
-      <div
-        className="rounded-[10px] px-[18px] py-3 mb-[14px] flex items-center gap-[10px] overflow-hidden"
-        style={{ background: 'var(--bg-2)', border: '1px solid var(--border)' }}
+      {/* Start Here */}
+      <Link
+        href="/education"
+        className="rounded-[10px] px-[18px] py-3 mb-[14px] flex items-center justify-center gap-2 transition-all hover:opacity-90"
+        style={{ background: 'var(--red)', border: '1px solid var(--red)', color: 'white' }}
       >
-        <div
-          className="text-[10px] font-bold uppercase tracking-[1px] flex-shrink-0 flex items-center gap-1.5"
-          style={{ color: 'var(--red)' }}
-        >
-          <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: 'var(--red)' }} />
-          LIVE RESULTS
-        </div>
-        <div className="overflow-hidden flex-1">
-          <div className="flex gap-6 ticker-animate" style={{ width: 'max-content' }}>
-            {[...TICKER_ITEMS, ...TICKER_ITEMS].map((item, i) => (
-              <div key={i} className="text-[13px] flex-shrink-0" style={{ color: 'var(--text-2)' }}>
-                {item.name} —{' '}
-                {item.amount ? (
-                  <>
-                    {item.system}{' '}
-                    <span className="font-bold font-mono" style={{ color: 'var(--green)' }}>
-                      ${item.amount.toLocaleString()}
-                    </span>
-                  </>
-                ) : (
-                  item.text
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+        <Play size={16} />
+        <span className="text-[13px] font-semibold">Start Here</span>
+      </Link>
 
       {/* Row 1: Community Highlights + Payout Leaderboard */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-[14px] mb-[22px]">
@@ -252,7 +218,6 @@ export default async function DashboardPage() {
                     )}
                     <div className="flex gap-3 mt-2 text-[11px]" style={{ color: 'var(--text-3)' }}>
                       <span>❤️ {post._count.likes}</span>
-                      <span>💬 {post._count.comments}</span>
                     </div>
                   </div>
                 )

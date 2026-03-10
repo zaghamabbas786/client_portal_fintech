@@ -1,16 +1,17 @@
 import { Metadata } from 'next'
 import { prisma } from '@/lib/prisma'
-import { Users, MessageSquare, Ticket, FileText } from 'lucide-react'
+import { Users, MessageSquare, Ticket, FileText, KeyRound } from 'lucide-react'
 import Link from 'next/link'
 
 export const metadata: Metadata = { title: 'Admin Panel' }
 
 export default async function AdminPage() {
-  const [totalUsers, totalPosts, openTickets, totalDownloads] = await Promise.all([
+  const [totalUsers, totalPosts, openTickets, totalDownloads, pendingEARequests] = await Promise.all([
     prisma.user.count(),
     prisma.post.count(),
     prisma.supportTicket.count({ where: { status: { not: 'RESOLVED' } } }),
     prisma.download.count(),
+    prisma.eARequest.count({ where: { status: 'PENDING' } }),
   ])
 
   const recentUsers = await prisma.user.findMany({
@@ -69,10 +70,11 @@ export default async function AdminPage() {
       </div>
 
       {/* Quick links */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
         {[
           { href: '/admin/users', label: 'User Management', desc: 'Manage roles, assign EAs, view activity', icon: <Users size={20} /> },
           { href: '/admin/content', label: 'Content Management', desc: 'Upload resources, manage videos', icon: <FileText size={20} /> },
+          { href: '/admin/ea-requests', label: 'EA Requests', desc: `${pendingEARequests} pending · Review and approve`, icon: <KeyRound size={20} /> },
           { href: '/admin/tickets', label: 'Support Tickets', desc: 'Respond to and manage tickets', icon: <Ticket size={20} /> },
           { href: '/admin/community', label: 'Community Moderation', desc: 'Pin posts, remove violations, manage feed', icon: <MessageSquare size={20} /> },
         ].map((link) => (

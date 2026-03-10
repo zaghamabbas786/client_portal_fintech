@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidateTag } from 'next/cache'
 import { requireAdmin } from '@/lib/admin-auth'
 import { prisma } from '@/lib/prisma'
 
@@ -22,6 +23,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     },
     include: { ea: true },
   })
+  revalidateTag('downloads')
   return NextResponse.json({ download })
 }
 
@@ -31,5 +33,6 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
 
   const { id } = await params
   await prisma.download.delete({ where: { id } })
+  revalidateTag('downloads')
   return NextResponse.json({ ok: true })
 }

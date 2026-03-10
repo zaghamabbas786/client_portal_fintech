@@ -306,7 +306,7 @@ function VideoModal({ item, onClose }: { item?: VideoItem; onClose: () => void }
           </div>
           <div>
             <label className="block text-[12px] font-semibold mb-1.5" style={{ color: 'var(--text-2)' }}>Embed URL * (YouTube/Vimeo)</label>
-            <input value={embedUrl} onChange={(e) => setEmbedUrl(e.target.value)} placeholder="https://youtube.com/embed/…" className="w-full rounded-lg px-3 py-2.5 text-[13px] outline-none" style={{ background: 'var(--bg-1)', border: '1px solid var(--border)', color: 'var(--text-1)' }} />
+            <input value={embedUrl} onChange={(e) => setEmbedUrl(e.target.value)} placeholder="Paste YouTube link (watch or youtu.be) — auto-converted to embed" className="w-full rounded-lg px-3 py-2.5 text-[13px] outline-none" style={{ background: 'var(--bg-1)', border: '1px solid var(--border)', color: 'var(--text-1)' }} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>

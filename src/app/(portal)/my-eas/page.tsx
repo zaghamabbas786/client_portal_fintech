@@ -1,7 +1,9 @@
 import { Metadata } from 'next'
+import Link from 'next/link'
 import { getUserProfile } from '@/lib/session'
-import { KeyRound, Download, Lock } from 'lucide-react'
-import { getCachedUserEAs, getCachedEAs } from '@/lib/data'
+import { KeyRound, Download, Lock, Plus, Clock } from 'lucide-react'
+import { getCachedUserEAs, getCachedEAs, getCachedUserEARequests } from '@/lib/data'
+import { formatRelativeTime } from '@/lib/utils'
 
 export const metadata: Metadata = { title: 'My EAs' }
 
@@ -9,24 +11,36 @@ export default async function MyEAsPage() {
   const userProfile = await getUserProfile()
   if (!userProfile) return null
 
-  const [userEAs, allEAs] = await Promise.all([
-    getCachedUserEAs(userProfile.id),
+  const isAurumOrAbove = ['AURUM', 'BOARDROOM', 'ADMIN'].includes(userProfile.role)
+  const isStandard = userProfile.role === 'STANDARD'
+  const allowedRoles = isAurumOrAbove ? ['STANDARD', 'AURUM', 'BOARDROOM'] : ['STANDARD']
+
+  const [userEAs, allEAs, eaRequests] = await Promise.all([
+    getCachedUserEAs(userProfile.id, allowedRoles),
     getCachedEAs(),
+    getCachedUserEARequests(userProfile.id),
   ])
   const userEAIds = new Set(userEAs.map((u) => u.eaId))
 
-  const isAurumOrAbove = ['AURUM', 'BOARDROOM', 'ADMIN'].includes(userProfile.role)
-  const isStandard = userProfile.role === 'STANDARD'
-
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-[22px] font-bold mb-1 flex items-center gap-2" style={{ color: 'var(--text-1)' }}>
-          <KeyRound size={20} style={{ color: 'var(--text-2)' }} /> My EAs
-        </h1>
-        <p className="text-[13px]" style={{ color: 'var(--text-2)' }}>
-          Manage your Expert Advisor licenses.
-        </p>
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-[22px] font-bold mb-1 flex items-center gap-2" style={{ color: 'var(--text-1)' }}>
+            <KeyRound size={20} style={{ color: 'var(--text-2)' }} /> My EAs
+          </h1>
+          <p className="text-[13px]" style={{ color: 'var(--text-2)' }}>
+            Manage your Expert Advisor licenses.
+          </p>
+        </div>
+        <Link
+          href="/my-eas/request"
+          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-[7px] text-[13px] font-semibold text-white transition-all hover:opacity-90 w-fit"
+          style={{ background: 'var(--red)' }}
+        >
+          <Plus size={16} />
+          Request EA
+        </Link>
       </div>
 
       {/* Active EAs */}
@@ -84,19 +98,94 @@ export default async function MyEAsPage() {
                   >
                     ● {uea.status === 'ACTIVE' ? 'Active' : 'Inactive'}
                   </span>
-                  {uea.ea.downloadUrl && (
-                    <a
-                      href={uea.ea.downloadUrl}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-[7px] text-[12px] font-medium transition-all hover:opacity-80"
-                      style={{ background: 'var(--bg-3)', color: 'var(--text-2)', border: '1px solid var(--border)' }}
-                    >
-                      <Download size={13} /> Download
-                    </a>
-                  )}
+                  {(() => {
+                    const downloadUrl = uea.ea.downloadUrl ?? (uea.ea as { downloads?: { fileUrl: string }[] }).downloads?.[0]?.fileUrl
+                    return downloadUrl ? (
+                      <a
+                        href={downloadUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-[7px] text-[12px] font-medium transition-all hover:opacity-80"
+                        style={{ background: 'var(--bg-3)', color: 'var(--text-2)', border: '1px solid var(--border)' }}
+                      >
+                        <Download size={13} /> Download
+                      </a>
+                    ) : null
+                  })()}
                 </div>
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Requested EAs */}
+      {eaRequests.length > 0 && (
+        <div
+          className="rounded-[10px] p-[18px] mb-5"
+          style={{ background: 'var(--bg-2)', border: '1px solid var(--border)' }}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <div className="text-[14px] font-semibold" style={{ color: 'var(--text-1)' }}>
+              Requested EAs
+            </div>
+            <Link
+              href="/my-eas/request"
+              className="text-[12px] font-medium hover:opacity-80"
+              style={{ color: 'var(--text-2)' }}
+            >
+              View all →
+            </Link>
+          </div>
+          <div className="space-y-2">
+            {eaRequests.slice(0, 5).map((r) => (
+              <div
+                key={r.id}
+                className="flex items-center justify-between px-4 py-3 rounded-[8px]"
+                style={{ background: 'var(--bg-1)', border: '1px solid var(--border)' }}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div
+                    className="w-10 h-10 rounded-[8px] flex items-center justify-center text-lg flex-shrink-0"
+                    style={{ background: 'var(--gold-s)' }}
+                  >
+                    <Clock size={18} style={{ color: 'var(--gold)' }} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-[14px] font-semibold truncate" style={{ color: 'var(--text-1)' }}>
+                      {r.eaName || 'EA Request'}
+                    </div>
+                    <p className="text-[12px] truncate mt-0.5" style={{ color: 'var(--text-3)' }}>
+                      {r.message}
+                    </p>
+                    <span className="text-[10px]" style={{ color: 'var(--text-3)' }}>
+                      {formatRelativeTime(r.createdAt)}
+                    </span>
+                  </div>
+                </div>
+                <span
+                  className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0"
+                  style={{
+                    background:
+                      r.status === 'PENDING' ? 'var(--gold-s)' : r.status === 'APPROVED' ? 'var(--green-s)' : 'var(--bg-3)',
+                    color:
+                      r.status === 'PENDING' ? 'var(--gold)' : r.status === 'APPROVED' ? 'var(--green)' : 'var(--text-3)',
+                  }}
+                >
+                  {r.status}
+                </span>
+              </div>
+            ))}
+          </div>
+          {eaRequests.length > 5 && (
+            <Link
+              href="/my-eas/request"
+              className="block text-center text-[12px] font-medium mt-3 py-2 hover:opacity-80"
+              style={{ color: 'var(--text-2)' }}
+            >
+              +{eaRequests.length - 5} more
+            </Link>
+          )}
         </div>
       )}
 
