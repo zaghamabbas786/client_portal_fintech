@@ -23,6 +23,7 @@ export const getCachedEAs = unstable_cache(
 
 /** Downloads list – depends on role, cache per role for 5 min. */
 export const getCachedDownloads = unstable_cache(
+  
   async (allowedRoles: string[]) =>
     prisma.download.findMany({
       where: { requiredRole: { in: allowedRoles as ('STANDARD' | 'AURUM' | 'BOARDROOM' | 'ADMIN')[] } },
