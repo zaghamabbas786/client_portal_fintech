@@ -26,14 +26,24 @@ export const getUserProfile = cache(async () => {
   })
 
   if (!profile) {
-    profile = await prisma.user.create({
-      data: {
-        supabaseId: authUser.id,
-        email: authUser.email!,
-        fullName: authUser.user_metadata?.full_name ?? null,
-        role: 'STANDARD',
-      },
-    })
+    try {
+      profile = await prisma.user.create({
+        data: {
+          supabaseId: authUser.id,
+          email: authUser.email!,
+          fullName: authUser.user_metadata?.full_name ?? null,
+          role: 'STANDARD',
+        },
+      })
+    } catch (err: unknown) {
+      // P2002: race with auth callback - user already exists, refetch
+      if (err && typeof err === 'object' && 'code' in err && err.code === 'P2002') {
+        profile = await prisma.user.findUnique({
+          where: { supabaseId: authUser.id },
+        })
+      }
+      if (!profile) throw err
+    }
   }
 
   return profile

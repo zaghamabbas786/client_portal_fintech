@@ -49,15 +49,26 @@ export async function GET(request: NextRequest) {
               select: { id: true },
             })
             if (!newUser) {
-              newUser = await prisma.user.create({
-                data: {
-                  supabaseId: data.user.id,
-                  email: data.user.email ?? '',
-                  fullName: data.user.user_metadata?.full_name ?? null,
-                  role: 'STANDARD',
-                },
-                select: { id: true },
-              })
+              try {
+                newUser = await prisma.user.create({
+                  data: {
+                    supabaseId: data.user.id,
+                    email: data.user.email ?? '',
+                    fullName: data.user.user_metadata?.full_name ?? null,
+                    role: 'STANDARD',
+                  },
+                  select: { id: true },
+                })
+              } catch (createErr: unknown) {
+                // P2002: race with getUserProfile - user already exists, refetch
+                if (createErr && typeof createErr === 'object' && 'code' in createErr && createErr.code === 'P2002') {
+                  newUser = await prisma.user.findUnique({
+                    where: { supabaseId: data.user.id },
+                    select: { id: true },
+                  })
+                }
+                if (!newUser) throw createErr
+              }
             }
             await prisma.referral.create({
               data: {

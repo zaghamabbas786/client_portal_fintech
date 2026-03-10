@@ -37,7 +37,7 @@ export default async function ReferralTracker({ userId, userEmail, refFromMetada
           },
         })
       }
-      cookieStore.delete('ref_code')
+      // Cannot delete cookies in Server Component - cookie expires in 30 days
       revalidateTag('referrals')
     }
   } catch (err) {
