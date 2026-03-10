@@ -3,6 +3,7 @@ import { getAuthUser, getUserProfile } from '@/lib/session'
 import SidebarWrapper from '@/components/layout/SidebarWrapper'
 import QueryProvider from '@/components/providers/QueryProvider'
 import ReferralTracker from '@/components/ReferralTracker'
+import ReferralTrackerClient from '@/components/ReferralTrackerClient'
 
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
   const authUser = await getAuthUser()
@@ -18,6 +19,7 @@ export default async function PortalLayout({ children }: { children: React.React
         userEmail={userProfile.email}
         refFromMetadata={authUser.user_metadata?.ref}
       />
+      <ReferralTrackerClient />
       <div className="flex min-h-screen" style={{ background: 'var(--bg-0)' }}>
         <SidebarWrapper user={userProfile} />
         {/* On mobile: no left margin (sidebar overlays). On desktop: offset by sidebar width */}
