@@ -80,7 +80,14 @@ export async function listProvisionedAccounts(): Promise<
   if (!res.ok) throw new Error(data.message ?? `MetaApi error ${res.status}`)
   const raw = data.accounts ?? data ?? []
   const accounts = Array.isArray(raw) ? raw : []
-  return accounts.map((a: { _id?: string; id?: string }) => ({ ...a, id: a._id ?? a.id }))
+  return accounts.map((a: { _id?: string; id?: string; name?: string; login?: string; server?: string; platform?: string; state?: string }) => ({
+    id: (a._id ?? a.id) ?? '',
+    name: a.name ?? '',
+    login: String(a.login ?? ''),
+    server: a.server ?? '',
+    platform: a.platform ?? '',
+    state: a.state ?? '',
+  }))
 }
 
 /** Get account by id from provisioning API. */
