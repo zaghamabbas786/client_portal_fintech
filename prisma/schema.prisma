@@ -76,6 +76,7 @@ model User {
   leaderboard   LeaderboardEntry[]
   referralsSent Referral[]         @relation("ReferralSender")
   referredBy    Referral[]         @relation("ReferralConverted")
+  mtAccounts    MTAccount[]
 }
 
 model Post {
@@ -247,6 +248,24 @@ model EARequest {
 
   @@index([userId])
   @@index([status])
+}
+
+model MTAccount {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  metaApiAccountId String   @unique
+  login            String
+  server           String
+  platform         String   // mt4 | mt5
+  name             String?
+  broker           String?
+  region           String?  // MetaApi region for trading API (e.g. new-york, vint-hill)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
 }
 
 model Referral {

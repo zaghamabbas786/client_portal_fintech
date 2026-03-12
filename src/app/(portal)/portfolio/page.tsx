@@ -1,7 +1,7 @@
 import { Metadata } from 'next'
 import { getUserProfile } from '@/lib/session'
 import { BarChart2, Lock } from 'lucide-react'
-import Link from 'next/link'
+import PortfolioClient from './PortfolioClient'
 
 export const metadata: Metadata = { title: 'Portfolio' }
 
@@ -53,31 +53,5 @@ export default async function PortfolioPage() {
     )
   }
 
-  // Aurum/Boardroom view — Phase 2 placeholder
-  return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-[22px] font-bold mb-1 flex items-center gap-2" style={{ color: 'var(--text-1)' }}>
-          <BarChart2 size={20} style={{ color: 'var(--text-2)' }} /> Portfolio
-        </h1>
-        <p className="text-[13px]" style={{ color: 'var(--text-2)' }}>
-          Connect and monitor your MT4/MT5 accounts.
-        </p>
-      </div>
-
-      <div
-        className="rounded-[10px] p-8 text-center"
-        style={{ background: 'var(--bg-2)', border: '1px solid var(--border)' }}
-      >
-        <div className="text-4xl mb-4">📊</div>
-        <h2 className="text-[16px] font-bold mb-2" style={{ color: 'var(--text-1)' }}>
-          MetaApi Integration Coming in Phase 2
-        </h2>
-        <p className="text-[13px]" style={{ color: 'var(--text-2)' }}>
-          Full MT4/MT5 portfolio analytics with equity curves, trade history, and live P&L tracking will be
-          available in the next release.
-        </p>
-      </div>
-    </div>
-  )
+  return <PortfolioClient />
 }
