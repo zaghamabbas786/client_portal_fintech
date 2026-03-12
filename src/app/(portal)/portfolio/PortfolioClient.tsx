@@ -456,7 +456,7 @@ function AccountDetailView({
                             fontSize: '12px',
                           }}
                           labelStyle={{ color: 'var(--text-2)' }}
-                          formatter={(value: number) => [formatCurrency(value), 'Equity']}
+                          formatter={(value) => [value != null ? formatCurrency(value) : '—', 'Equity']}
                           labelFormatter={(label) => label}
                         />
                         <Area
