@@ -15,21 +15,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const isTest = req.nextUrl.searchParams.get('test') === '1'
+  const isManualTest = req.nextUrl.searchParams.get('test') === '1'
   let calendlyUrl = process.env.NEXT_PUBLIC_CALENDLY_URL
-  console.log('[check-in-email] Calendly URL:', calendlyUrl)
-  if (!calendlyUrl || calendlyUrl.includes('YOUR_CALENDLY')) {
-    if (isTest) {
-      calendlyUrl = 'https://calendly.com' // placeholder for test
-    } else {
-      return NextResponse.json(
-        { error: 'NEXT_PUBLIC_CALENDLY_URL not configured' },
-        { status: 503 }
-      )
-    }
-  }
+  const isTestMode = !calendlyUrl || calendlyUrl.includes('YOUR_CALENDLY')
+  if (isTestMode) calendlyUrl = 'https://calendly.com'
+  console.log('[check-in-email] Calendly URL:', calendlyUrl, '| Test mode:', isTestMode)
 
-  if (isTest) {
+  if (isManualTest) {
     const testEmail = process.env.TEST_USER_EMAIL
     if (!testEmail) {
       return NextResponse.json({ error: 'TEST_USER_EMAIL not set for test mode' }, { status: 400 })
@@ -48,17 +40,24 @@ export async function GET(req: NextRequest) {
   }
 
   const now = new Date()
-  const oneAndHalfDaysAgo = new Date(now)
-  oneAndHalfDaysAgo.setTime(oneAndHalfDaysAgo.getTime() - 1.5 * 24 * 60 * 60 * 1000)
-  const halfDayAgo = new Date(now)
-  halfDayAgo.setTime(halfDayAgo.getTime() - 0.5 * 24 * 60 * 60 * 1000)
+  let startDate: Date
+  let endDate: Date
 
-  // Users who joined 0.5–1.5 days ago (1-day check for testing)
+  if (isTestMode) {
+    // No Calendly = test: check users 0.5–1.5 days old
+    startDate = new Date(now.getTime() - 1.5 * 24 * 60 * 60 * 1000)
+    endDate = new Date(now.getTime() - 0.5 * 24 * 60 * 60 * 1000)
+  } else {
+    // Production: check users 29–31 days old
+    startDate = new Date(now.getTime() - 31 * 24 * 60 * 60 * 1000)
+    endDate = new Date(now.getTime() - 29 * 24 * 60 * 60 * 1000)
+  }
+
   const users = await prisma.user.findMany({
     where: {
       createdAt: {
-        gte: oneAndHalfDaysAgo,
-        lte: halfDayAgo,
+        gte: startDate,
+        lte: endDate,
       },
       checkInEmailSentAt: null,
       emailNotifications: true,
