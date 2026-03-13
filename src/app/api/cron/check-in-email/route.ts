@@ -6,7 +6,7 @@ import { sendCheckInEmail } from '@/lib/resend'
 export const dynamic = 'force-dynamic'
 
 /**
- * Vercel Cron: runs daily at 6:02 PM Pakistan time (13:02 UTC).
+ * Vercel Cron: runs daily at 7:10 PM Pakistan time (14:10 UTC).
  * Sends 30-day check-in email with Calendly link
  * to users who joined 30 days ago and haven't received it yet.
  *
@@ -53,9 +53,9 @@ export async function GET(req: NextRequest) {
   let endDate: Date
 
   if (isTestMode) {
-    // No Calendly = test: check users 0.5–1.5 days old
-    startDate = new Date(now.getTime() - 1.5 * 24 * 60 * 60 * 1000)
-    endDate = new Date(now.getTime() - 0.5 * 24 * 60 * 60 * 1000)
+    // No Calendly = test: check users 1–31 days old (wider window for existing users)
+    startDate = new Date(now.getTime() - 31 * 24 * 60 * 60 * 1000)
+    endDate = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000)
   } else {
     // Production: check users 29–31 days old
     startDate = new Date(now.getTime() - 31 * 24 * 60 * 60 * 1000)
