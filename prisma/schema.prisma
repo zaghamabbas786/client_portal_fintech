@@ -63,6 +63,8 @@ model User {
   communityAlerts    Boolean @default(true)
   payoutUpdates      Boolean @default(true)
 
+  checkInEmailSentAt DateTime? // 30-day check-in email sent once
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

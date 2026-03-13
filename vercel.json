@@ -4,5 +4,11 @@
       "maxDuration": 30
     }
   },
-  "regions": ["icn1"]
+  "regions": ["icn1"],
+  "crons": [
+    {
+      "path": "/api/cron/check-in-email",
+      "schedule": "0 9 * * *"
+    }
+  ]
 }
