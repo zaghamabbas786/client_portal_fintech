@@ -14,8 +14,12 @@ export const dynamic = 'force-dynamic'
  */
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization')
+  const userAgent = req.headers.get('user-agent') ?? ''
   const cronSecret = process.env.CRON_SECRET
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  const isVercelCron = userAgent === 'vercel-cron/1.0'
+  const hasValidAuth = !cronSecret || authHeader === `Bearer ${cronSecret}`
+
+  if (!hasValidAuth && !isVercelCron) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -23,7 +27,8 @@ export async function GET(req: NextRequest) {
   const rawCalendly = process.env.NEXT_PUBLIC_CALENDLY_URL
   const isTestMode = !rawCalendly || rawCalendly.includes('YOUR_CALENDLY')
   const calendlyUrl: string = isTestMode ? 'https://calendly.com' : (rawCalendly ?? 'https://calendly.com')
-  console.log('[check-in-email] Calendly URL:', calendlyUrl, '| Test mode:', isTestMode)
+  const hasResendKey = !!process.env.RESEND_API_KEY
+  console.log('[check-in-email] Calendly URL:', calendlyUrl, '| Test mode:', isTestMode, '| RESEND_API_KEY:', hasResendKey ? 'set' : 'MISSING')
 
   if (isManualTest) {
     const testEmail = process.env.TEST_USER_EMAIL
@@ -69,8 +74,26 @@ export async function GET(req: NextRequest) {
     select: { id: true, email: true, fullName: true },
   })
 
+  console.log('[check-in-email] Users found:', users.length)
+
   let sent = 0
   const errors: string[] = []
+
+  // If no users match but TEST_USER_EMAIL is set, send one test email to verify Resend pipeline
+  if (users.length === 0 && process.env.TEST_USER_EMAIL && isTestMode) {
+    const result = await sendCheckInEmail({
+      to: process.env.TEST_USER_EMAIL,
+      name: 'Test (no users in range)',
+      calendlyUrl,
+    })
+    if (result.success) {
+      sent = 1
+      console.log('[check-in-email] Sent fallback test email to', process.env.TEST_USER_EMAIL)
+    } else {
+      errors.push(`Fallback test: ${result.error}`)
+      console.log('[check-in-email] Fallback test failed:', result.error)
+    }
+  }
 
   for (const user of users) {
     const result = await sendCheckInEmail({
@@ -94,6 +117,7 @@ export async function GET(req: NextRequest) {
     ok: true,
     sent,
     total: users.length,
+    fallbackTest: users.length === 0 && !!process.env.TEST_USER_EMAIL && isTestMode,
     errors: errors.length > 0 ? errors : undefined,
   })
 }
