@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { isAdmin } from '@/lib/admin-auth'
+import { requireAdmin } from '@/lib/admin-auth'
 import { revalidateTag } from 'next/cache'
 
 export async function PATCH(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const ok = await isAdmin()
-  if (!ok) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  const auth = await requireAdmin()
+  if (auth.error) return auth.error
 
   const { id } = await params
   const body = await _req.json().catch(() => ({}))
