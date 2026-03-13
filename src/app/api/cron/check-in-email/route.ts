@@ -48,19 +48,17 @@ export async function GET(req: NextRequest) {
   }
 
   const now = new Date()
-  const thirtyDaysAgo = new Date(now)
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-  const twentyNineDaysAgo = new Date(now)
-  twentyNineDaysAgo.setDate(twentyNineDaysAgo.getDate() - 29)
-  const thirtyOneDaysAgo = new Date(now)
-  thirtyOneDaysAgo.setDate(thirtyOneDaysAgo.getDate() - 31)
+  const oneAndHalfDaysAgo = new Date(now)
+  oneAndHalfDaysAgo.setTime(oneAndHalfDaysAgo.getTime() - 1.5 * 24 * 60 * 60 * 1000)
+  const halfDayAgo = new Date(now)
+  halfDayAgo.setTime(halfDayAgo.getTime() - 0.5 * 24 * 60 * 60 * 1000)
 
-  // Users who joined 29–31 days ago (window to catch daily cron)
+  // Users who joined 0.5–1.5 days ago (1-day check for testing)
   const users = await prisma.user.findMany({
     where: {
       createdAt: {
-        gte: thirtyOneDaysAgo,
-        lte: twentyNineDaysAgo,
+        gte: oneAndHalfDaysAgo,
+        lte: halfDayAgo,
       },
       checkInEmailSentAt: null,
       emailNotifications: true,
