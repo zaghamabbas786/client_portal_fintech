@@ -56,17 +56,19 @@ export const getCachedAllVideos = unstable_cache(
 )
 
 /** Leaderboard for a given month/year – cache for 2 min (updates often). */
-export const getCachedLeaderboard = unstable_cache(
-  async (month: string, year: number) =>
-    prisma.leaderboardEntry.findMany({
-      where: { month, year },
-      orderBy: { payout: 'desc' },
-      take: 20,
-      include: { user: { select: { id: true, fullName: true, role: true } } },
-    }),
-  ['leaderboard'],
-  { revalidate: 120, tags: ['leaderboard'] },
-)
+export function getCachedLeaderboard(month: string, year: number) {
+  return unstable_cache(
+    async () =>
+      prisma.leaderboardEntry.findMany({
+        where: { month, year },
+        orderBy: { payout: 'desc' },
+        take: 20,
+        include: { user: { select: { id: true, fullName: true, role: true } } },
+      }),
+    ['leaderboard', month, String(year)],
+    { revalidate: 120, tags: ['leaderboard'] },
+  )()
+}
 
 /** Count of new community posts (last 7 days) for sidebar badge. */
 export const getCachedCommunityNewCount = unstable_cache(

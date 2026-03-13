@@ -2,8 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { sendCheckInEmail } from '@/lib/resend'
 
+/** Prevent caching so cron always executes (Vercel may serve cached response otherwise). */
+export const dynamic = 'force-dynamic'
+
 /**
- * Vercel Cron: runs daily. Sends 30-day check-in email with Calendly link
+ * Vercel Cron: runs daily at 6:02 PM Pakistan time (13:02 UTC).
+ * Sends 30-day check-in email with Calendly link
  * to users who joined 30 days ago and haven't received it yet.
  *
  * Test mode: ?test=1 sends one email to TEST_USER_EMAIL (no 30-day filter).

@@ -41,6 +41,12 @@ const BUCKETS = [
     fileSizeLimit: 5 * 1024 * 1024,
     allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
   },
+  {
+    name: 'payout-proofs',
+    public: true,
+    fileSizeLimit: 10 * 1024 * 1024,
+    allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'],
+  },
 ]
 
 /** RLS policies: authenticated users can INSERT; public can SELECT */

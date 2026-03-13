@@ -5,6 +5,7 @@ import { formatCurrency } from '@/lib/utils'
 import { Trophy } from 'lucide-react'
 import { getCachedLeaderboard } from '@/lib/data'
 import MonthFilter from './MonthFilter'
+import AddPayoutForm from './AddPayoutForm'
 
 export const metadata: Metadata = { title: 'Leaderboard' }
 
@@ -79,13 +80,16 @@ export default async function LeaderboardPage({
             Top traders ranked by monthly payout.
           </p>
         </div>
-        <Suspense fallback={
+        <div className="flex items-center gap-2">
+          <AddPayoutForm />
+          <Suspense fallback={
           <div className="px-3 py-2 rounded-lg text-[13px] font-medium" style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', color: 'var(--text-2)' }}>
             {currentMonth} {currentYear}
           </div>
         }>
           <MonthFilter currentMonth={currentMonth} currentYear={currentYear} />
         </Suspense>
+        </div>
       </div>
 
       <div className="overflow-x-auto rounded-[10px]">

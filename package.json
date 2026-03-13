@@ -13,6 +13,7 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
     "storage:setup": "tsx scripts/create-storage-bucket.ts",
+    "build:buckets": "tsx scripts/create-storage-bucket.ts",
     "db:studio": "prisma studio",
     "test": "jest",
     "test:watch": "jest --watch",
