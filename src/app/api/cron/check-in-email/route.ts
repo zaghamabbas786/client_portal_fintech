@@ -16,9 +16,9 @@ export async function GET(req: NextRequest) {
   }
 
   const isManualTest = req.nextUrl.searchParams.get('test') === '1'
-  let calendlyUrl = process.env.NEXT_PUBLIC_CALENDLY_URL
-  const isTestMode = !calendlyUrl || calendlyUrl.includes('YOUR_CALENDLY')
-  if (isTestMode) calendlyUrl = 'https://calendly.com'
+  const rawCalendly = process.env.NEXT_PUBLIC_CALENDLY_URL
+  const isTestMode = !rawCalendly || rawCalendly.includes('YOUR_CALENDLY')
+  const calendlyUrl: string = isTestMode ? 'https://calendly.com' : (rawCalendly ?? 'https://calendly.com')
   console.log('[check-in-email] Calendly URL:', calendlyUrl, '| Test mode:', isTestMode)
 
   if (isManualTest) {
