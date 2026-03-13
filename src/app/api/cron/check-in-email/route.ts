@@ -6,7 +6,7 @@ import { sendCheckInEmail } from '@/lib/resend'
 export const dynamic = 'force-dynamic'
 
 /**
- * Vercel Cron: runs daily at 7:10 PM Pakistan time (14:10 UTC).
+ * Vercel Cron: runs daily at 8:12 PM Pakistan time (15:12 UTC).
  * Sends 30-day check-in email with Calendly link
  * to users who joined 30 days ago and haven't received it yet.
  *
@@ -48,19 +48,10 @@ export async function GET(req: NextRequest) {
     })
   }
 
+  // Only users who joined 29–31 days ago (30-day check-in window)
   const now = new Date()
-  let startDate: Date
-  let endDate: Date
-
-  if (isTestMode) {
-    // No Calendly = test: check users 1–31 days old (wider window for existing users)
-    startDate = new Date(now.getTime() - 31 * 24 * 60 * 60 * 1000)
-    endDate = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000)
-  } else {
-    // Production: check users 29–31 days old
-    startDate = new Date(now.getTime() - 31 * 24 * 60 * 60 * 1000)
-    endDate = new Date(now.getTime() - 29 * 24 * 60 * 60 * 1000)
-  }
+  const startDate = new Date(now.getTime() - 31 * 24 * 60 * 60 * 1000)
+  const endDate = new Date(now.getTime() - 29 * 24 * 60 * 60 * 1000)
 
   const users = await prisma.user.findMany({
     where: {
@@ -78,22 +69,6 @@ export async function GET(req: NextRequest) {
 
   let sent = 0
   const errors: string[] = []
-
-  // If no users match but TEST_USER_EMAIL is set, send one test email to verify Resend pipeline
-  if (users.length === 0 && process.env.TEST_USER_EMAIL && isTestMode) {
-    const result = await sendCheckInEmail({
-      to: process.env.TEST_USER_EMAIL,
-      name: 'Test (no users in range)',
-      calendlyUrl,
-    })
-    if (result.success) {
-      sent = 1
-      console.log('[check-in-email] Sent fallback test email to', process.env.TEST_USER_EMAIL)
-    } else {
-      errors.push(`Fallback test: ${result.error}`)
-      console.log('[check-in-email] Fallback test failed:', result.error)
-    }
-  }
 
   for (const user of users) {
     const result = await sendCheckInEmail({
@@ -117,7 +92,6 @@ export async function GET(req: NextRequest) {
     ok: true,
     sent,
     total: users.length,
-    fallbackTest: users.length === 0 && !!process.env.TEST_USER_EMAIL && isTestMode,
     errors: errors.length > 0 ? errors : undefined,
   })
 }
