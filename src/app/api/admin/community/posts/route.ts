@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/admin-auth'
 import { prisma } from '@/lib/prisma'
+import type { PostTag } from '@prisma/client'
 
 const LIMIT = 10
+const VALID_TAGS: PostTag[] = ['PAYOUT', 'AURUM_RESULTS', 'CHALLENGE_PASSED', 'GENERAL', 'QUESTION']
 
 export async function GET(req: NextRequest) {
   const auth = await requireAdmin()
@@ -11,7 +13,8 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10))
   const search = searchParams.get('search')?.trim() ?? ''
-  const tag = searchParams.get('tag')?.trim() ?? ''
+  const tagParam = searchParams.get('tag')?.trim() ?? ''
+  const tag = tagParam && tagParam !== 'ALL' && VALID_TAGS.includes(tagParam as PostTag) ? (tagParam as PostTag) : null
 
   const where = {
     ...(search && {
@@ -21,7 +24,7 @@ export async function GET(req: NextRequest) {
         { user: { email: { contains: search, mode: 'insensitive' as const } } },
       ],
     }),
-    ...(tag && tag !== 'ALL' && { tag }),
+    ...(tag && { tag }),
   }
 
   const [posts, total] = await Promise.all([
