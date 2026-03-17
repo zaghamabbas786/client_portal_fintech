@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Ticket, X, Loader2, Send, Trash2, ChevronDown } from 'lucide-react'
 import { formatRelativeTime } from '@/lib/utils'
+import Pagination from '@/components/admin/Pagination'
 
 type Status = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED'
 type Priority = 'LOW' | 'MEDIUM' | 'HIGH'
@@ -207,12 +208,17 @@ export default function AdminTicketsPage() {
   const qc = useQueryClient()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<Status | 'ALL'>('ALL')
+  const [page, setPage] = useState(1)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
   const { data, isLoading } = useQuery({
-    queryKey: ['admin', 'tickets'],
-    queryFn: (): Promise<{ tickets: AdminTicket[] }> =>
-      fetch('/api/admin/tickets').then((r) => r.json()),
+    queryKey: ['admin', 'tickets', page, statusFilter],
+    queryFn: (): Promise<{ tickets: AdminTicket[]; total: number; page: number; totalPages: number; counts?: Record<string, number> }> => {
+      const params = new URLSearchParams()
+      params.set('page', String(page))
+      if (statusFilter !== 'ALL') params.set('status', statusFilter)
+      return fetch(`/api/admin/tickets?${params}`).then((r) => r.json())
+    },
   })
 
   const deleteTicket = useMutation({
@@ -225,8 +231,9 @@ export default function AdminTicketsPage() {
   })
 
   const tickets = data?.tickets ?? []
-  const filtered = statusFilter === 'ALL' ? tickets : tickets.filter((t) => t.status === statusFilter)
-  const openCount = tickets.filter((t) => t.status !== 'RESOLVED').length
+  const total = data?.total ?? 0
+  const totalPages = data?.totalPages ?? 1
+  const counts = data?.counts ?? { ALL: 0, OPEN: 0, IN_PROGRESS: 0, RESOLVED: 0 }
 
   return (
     <div>
@@ -236,7 +243,7 @@ export default function AdminTicketsPage() {
             <Ticket size={20} style={{ color: 'var(--text-2)' }} /> Support Tickets
           </h1>
           <p className="text-[13px]" style={{ color: 'var(--text-2)' }}>
-            {openCount} open · {tickets.length} total
+            {(counts.OPEN ?? 0) + (counts.IN_PROGRESS ?? 0)} open · {counts.ALL ?? total} total
           </p>
         </div>
       </div>
@@ -245,11 +252,11 @@ export default function AdminTicketsPage() {
       <div className="flex gap-2 mb-4">
         {(['ALL', 'OPEN', 'IN_PROGRESS', 'RESOLVED'] as (Status | 'ALL')[]).map((s) => {
           const meta = s !== 'ALL' ? STATUS_META[s as Status] : null
-          const count = s === 'ALL' ? tickets.length : tickets.filter((t) => t.status === s).length
+          const count = s === 'ALL' ? counts.ALL : counts[s]
           return (
             <button
               key={s}
-              onClick={() => setStatusFilter(s)}
+              onClick={() => { setStatusFilter(s); setPage(1) }}
               className="px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-all flex items-center gap-1.5"
               style={{
                 background: statusFilter === s ? (meta ? meta.bg : 'var(--red-s)') : 'var(--bg-2)',
@@ -258,7 +265,7 @@ export default function AdminTicketsPage() {
               }}
             >
               {s === 'ALL' ? 'All' : STATUS_META[s as Status].label}
-              <span className="font-mono text-[10px]">{count}</span>
+              <span className="font-mono text-[10px]">{count ?? 0}</span>
             </button>
           )
         })}
@@ -275,10 +282,11 @@ export default function AdminTicketsPage() {
 
         {isLoading ? (
           <div className="flex items-center justify-center py-16"><Loader2 size={24} className="animate-spin" style={{ color: 'var(--text-3)' }} /></div>
-        ) : filtered.length === 0 ? (
+        ) : tickets.length === 0 ? (
           <div className="px-5 py-10 text-center text-[13px]" style={{ color: 'var(--text-3)' }}>No tickets found.</div>
         ) : (
-          filtered.map((ticket) => {
+          <>
+          {tickets.map((ticket) => {
             const statusMeta = STATUS_META[ticket.status]
             const priorityMeta = PRIORITY_META[ticket.priority]
             return (
@@ -315,7 +323,9 @@ export default function AdminTicketsPage() {
                 </div>
               </div>
             )
-          })
+          })}
+          <Pagination page={page} totalPages={totalPages} total={total} onPageChange={setPage} />
+          </>
         )}
       </div>
 

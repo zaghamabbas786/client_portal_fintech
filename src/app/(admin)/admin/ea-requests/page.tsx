@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { KeyRound, Loader2, ChevronDown } from 'lucide-react'
 import { formatRelativeTime } from '@/lib/utils'
+import Pagination from '@/components/admin/Pagination'
 
 type Status = 'PENDING' | 'REVIEWED' | 'APPROVED' | 'DECLINED'
 
@@ -26,12 +27,17 @@ const STATUS_META: Record<Status, { label: string; bg: string; color: string }> 
 export default function AdminEARequestsPage() {
   const qc = useQueryClient()
   const [statusFilter, setStatusFilter] = useState<Status | 'ALL'>('ALL')
+  const [page, setPage] = useState(1)
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
   const { data, isLoading } = useQuery({
-    queryKey: ['admin', 'ea-requests'],
-    queryFn: (): Promise<{ requests: EARequestRow[] }> =>
-      fetch('/api/admin/ea-requests').then((r) => r.json()),
+    queryKey: ['admin', 'ea-requests', page, statusFilter],
+    queryFn: (): Promise<{ requests: EARequestRow[]; total: number; page: number; totalPages: number; counts?: Record<string, number> }> => {
+      const params = new URLSearchParams()
+      params.set('page', String(page))
+      if (statusFilter !== 'ALL') params.set('status', statusFilter)
+      return fetch(`/api/admin/ea-requests?${params}`).then((r) => r.json())
+    },
   })
 
   const updateStatus = useMutation({
@@ -47,8 +53,10 @@ export default function AdminEARequestsPage() {
   })
 
   const requests = data?.requests ?? []
-  const filtered = statusFilter === 'ALL' ? requests : requests.filter((r) => r.status === statusFilter)
-  const pendingCount = requests.filter((r) => r.status === 'PENDING').length
+  const total = data?.total ?? 0
+  const totalPages = data?.totalPages ?? 1
+  const counts = data?.counts ?? {}
+  const pendingCount = counts.PENDING ?? 0
 
   return (
     <div>
@@ -57,7 +65,7 @@ export default function AdminEARequestsPage() {
           <KeyRound size={20} style={{ color: 'var(--text-2)' }} /> EA Requests
         </h1>
         <p className="text-[13px]" style={{ color: 'var(--text-2)' }}>
-          {pendingCount} pending · {requests.length} total
+          {pendingCount} pending · {counts.ALL ?? total} total
         </p>
       </div>
 
@@ -65,11 +73,11 @@ export default function AdminEARequestsPage() {
       <div className="flex gap-2 mb-4 flex-wrap">
         {(['ALL', 'PENDING', 'REVIEWED', 'APPROVED', 'DECLINED'] as (Status | 'ALL')[]).map((s) => {
           const meta = s !== 'ALL' ? STATUS_META[s as Status] : null
-          const count = s === 'ALL' ? requests.length : requests.filter((r) => r.status === s).length
+          const count = s === 'ALL' ? (counts.ALL ?? 0) : (counts[s] ?? 0)
           return (
             <button
               key={s}
-              onClick={() => setStatusFilter(s)}
+              onClick={() => { setStatusFilter(s); setPage(1) }}
               className="px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-all flex items-center gap-1.5"
               style={{
                 background: statusFilter === s ? (meta ? meta.bg : 'var(--red-s)') : 'var(--bg-2)',
@@ -95,10 +103,11 @@ export default function AdminEARequestsPage() {
 
         {isLoading ? (
           <div className="flex items-center justify-center py-16"><Loader2 size={24} className="animate-spin" style={{ color: 'var(--text-3)' }} /></div>
-        ) : filtered.length === 0 ? (
+        ) : requests.length === 0 ? (
           <div className="px-5 py-10 text-center text-[13px]" style={{ color: 'var(--text-3)' }}>No EA requests found.</div>
         ) : (
-          filtered.map((req) => {
+          <>
+          {requests.map((req) => {
             const meta = STATUS_META[req.status as Status] ?? STATUS_META.PENDING
             const isExpanded = expandedId === req.id
             return (
@@ -155,7 +164,9 @@ export default function AdminEARequestsPage() {
                 )}
               </div>
             )
-          })
+          })}
+          <Pagination page={page} totalPages={totalPages} total={total} onPageChange={setPage} />
+          </>
         )}
       </div>
     </div>

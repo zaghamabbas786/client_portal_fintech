@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { MessageSquare, Pin, PinOff, Trash2, Loader2, Search, X } from 'lucide-react'
 import { formatRelativeTime, getInitials } from '@/lib/utils'
+import Pagination from '@/components/admin/Pagination'
 
 interface PostUser {
   id: string
@@ -41,12 +42,18 @@ export default function AdminCommunityPage() {
   const qc = useQueryClient()
   const [search, setSearch] = useState('')
   const [tagFilter, setTagFilter] = useState<string>('ALL')
+  const [page, setPage] = useState(1)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
   const { data, isLoading } = useQuery({
-    queryKey: ['admin', 'community', 'posts'],
-    queryFn: (): Promise<{ posts: Post[] }> =>
-      fetch('/api/admin/community/posts').then((r) => r.json()),
+    queryKey: ['admin', 'community', 'posts', page, search, tagFilter],
+    queryFn: (): Promise<{ posts: Post[]; total: number; page: number; totalPages: number }> => {
+      const params = new URLSearchParams()
+      params.set('page', String(page))
+      if (search) params.set('search', search)
+      if (tagFilter !== 'ALL') params.set('tag', tagFilter)
+      return fetch(`/api/admin/community/posts?${params}`).then((r) => r.json())
+    },
   })
 
   const togglePin = useMutation({
@@ -69,14 +76,8 @@ export default function AdminCommunityPage() {
   })
 
   const posts = data?.posts ?? []
-  const filtered = posts.filter((p) => {
-    const matchesSearch =
-      !search ||
-      p.content.toLowerCase().includes(search.toLowerCase()) ||
-      (p.user.fullName ?? p.user.email).toLowerCase().includes(search.toLowerCase())
-    const matchesTag = tagFilter === 'ALL' || p.tag === tagFilter
-    return matchesSearch && matchesTag
-  })
+  const total = data?.total ?? 0
+  const totalPages = data?.totalPages ?? 1
 
   return (
     <div>
@@ -98,7 +99,7 @@ export default function AdminCommunityPage() {
             type="text"
             placeholder="Search posts or authors…"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
             className="w-full pl-9 pr-3 py-2 rounded-lg text-[13px] outline-none"
             style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', color: 'var(--text-1)' }}
           />
@@ -107,7 +108,7 @@ export default function AdminCommunityPage() {
           {['ALL', ...Object.keys(TAG_LABELS)].map((tag) => (
             <button
               key={tag}
-              onClick={() => setTagFilter(tag)}
+              onClick={() => { setTagFilter(tag); setPage(1) }}
               className="px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all"
               style={
                 tagFilter === tag
@@ -123,9 +124,9 @@ export default function AdminCommunityPage() {
 
       {/* Summary */}
       <div className="text-[12px] mb-4" style={{ color: 'var(--text-3)' }}>
-        {filtered.length} post{filtered.length !== 1 ? 's' : ''}
+        {total} post{total !== 1 ? 's' : ''}
         {' · '}
-        {filtered.filter((p) => p.isPinned).length} pinned
+        {posts.filter((p) => p.isPinned).length} pinned on this page
       </div>
 
       {/* Posts table */}
@@ -148,13 +149,13 @@ export default function AdminCommunityPage() {
           </div>
         )}
 
-        {!isLoading && filtered.length === 0 && (
+        {!isLoading && posts.length === 0 && (
           <div className="py-10 text-center text-[13px]" style={{ color: 'var(--text-3)' }}>
             No posts match your filters.
           </div>
         )}
 
-        {filtered.map((post) => {
+        {posts.map((post) => {
           const tagStyle = TAG_COLORS[post.tag] ?? TAG_COLORS.GENERAL
           const displayName = post.user.fullName || post.user.email.split('@')[0]
 
@@ -235,6 +236,7 @@ export default function AdminCommunityPage() {
             </div>
           )
         })}
+        <Pagination page={page} totalPages={totalPages} total={total} onPageChange={setPage} />
       </div>
 
       {/* Delete confirmation dialog */}

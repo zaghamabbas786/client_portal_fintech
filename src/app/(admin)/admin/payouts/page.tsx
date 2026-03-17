@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Trophy, Loader2, ChevronDown, ExternalLink, Check, X } from 'lucide-react'
 import { formatRelativeTime, formatCurrency } from '@/lib/utils'
+import Pagination from '@/components/admin/Pagination'
 
 interface PayoutSubmissionRow {
   id: string
@@ -19,12 +20,13 @@ interface PayoutSubmissionRow {
 
 export default function AdminPayoutsPage() {
   const qc = useQueryClient()
+  const [page, setPage] = useState(1)
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
   const { data, isLoading } = useQuery({
-    queryKey: ['admin', 'payouts'],
-    queryFn: (): Promise<{ submissions: PayoutSubmissionRow[] }> =>
-      fetch('/api/admin/payouts').then((r) => r.json()),
+    queryKey: ['admin', 'payouts', page],
+    queryFn: (): Promise<{ submissions: PayoutSubmissionRow[]; total: number; page: number; totalPages: number }> =>
+      fetch(`/api/admin/payouts?page=${page}`).then((r) => r.json()),
   })
 
   const updateStatus = useMutation({
@@ -40,6 +42,8 @@ export default function AdminPayoutsPage() {
   })
 
   const submissions = data?.submissions ?? []
+  const total = data?.total ?? 0
+  const totalPages = data?.totalPages ?? 1
 
   return (
     <div>
@@ -48,7 +52,7 @@ export default function AdminPayoutsPage() {
           <Trophy size={20} style={{ color: 'var(--text-2)' }} /> Payout Verifications
         </h1>
         <p className="text-[13px]" style={{ color: 'var(--text-2)' }}>
-          {submissions.length} pending · Review proof and approve for leaderboard
+          {total} pending · Review proof and approve for leaderboard
         </p>
       </div>
 
@@ -141,6 +145,7 @@ export default function AdminPayoutsPage() {
             )
           })
         )}
+        <Pagination page={page} totalPages={totalPages} total={total} onPageChange={setPage} />
       </div>
     </div>
   )

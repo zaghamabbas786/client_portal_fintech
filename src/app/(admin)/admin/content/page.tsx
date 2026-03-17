@@ -4,6 +4,7 @@ import { useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { FileText, Video, Plus, Pencil, Trash2, X, Loader2, Star, UploadCloud, Link as LinkIcon } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import Pagination from '@/components/admin/Pagination'
 
 type Role = 'STANDARD' | 'AURUM' | 'BOARDROOM'
 type FileType = 'EA_FILE' | 'SET_FILE' | 'PDF_GUIDE' | 'BROKER_SETTINGS'
@@ -364,17 +365,22 @@ function VideoModal({ item, onClose }: { item?: VideoItem; onClose: () => void }
 export default function AdminContentPage() {
   const qc = useQueryClient()
   const [tab, setTab] = useState<'downloads' | 'videos'>('downloads')
+  const [dlPage, setDlPage] = useState(1)
+  const [vidPage, setVidPage] = useState(1)
   const [dlModal, setDlModal] = useState<Download | null | true>(null) // true = new
   const [vidModal, setVidModal] = useState<VideoItem | null | true>(null)
   const [confirmDelete, setConfirmDelete] = useState<{ type: 'download' | 'video'; id: string } | null>(null)
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['admin', 'content'],
-    queryFn: (): Promise<{ downloads: Download[]; eas: EA[]; videos?: VideoItem[] }> =>
-      Promise.all([
-        fetch('/api/admin/content/downloads').then((r) => r.json()),
-        fetch('/api/admin/content/videos').then((r) => r.json()),
-      ]).then(([dl, vid]) => ({ ...dl, videos: vid.videos })),
+  const { data: dlData, isLoading: dlLoading } = useQuery({
+    queryKey: ['admin', 'content', 'downloads', dlPage],
+    queryFn: (): Promise<{ downloads: Download[]; eas: EA[]; total: number; page: number; totalPages: number }> =>
+      fetch(`/api/admin/content/downloads?page=${dlPage}`).then((r) => r.json()),
+  })
+
+  const { data: vidData, isLoading: vidLoading } = useQuery({
+    queryKey: ['admin', 'content', 'videos', vidPage],
+    queryFn: (): Promise<{ videos: VideoItem[]; total: number; page: number; totalPages: number }> =>
+      fetch(`/api/admin/content/videos?page=${vidPage}`).then((r) => r.json()),
   })
 
   const deleteItem = useMutation({
@@ -386,9 +392,13 @@ export default function AdminContentPage() {
     },
   })
 
-  const downloads = data?.downloads ?? []
-  const videos = data?.videos ?? []
-  const eas = data?.eas ?? []
+  const downloads = dlData?.downloads ?? []
+  const videos = vidData?.videos ?? []
+  const eas = dlData?.eas ?? []
+  const dlTotal = dlData?.total ?? 0
+  const dlTotalPages = dlData?.totalPages ?? 1
+  const vidTotal = vidData?.total ?? 0
+  const vidTotalPages = vidData?.totalPages ?? 1
 
   return (
     <div>
@@ -419,12 +429,12 @@ export default function AdminContentPage() {
             }}
           >
             {t === 'downloads' ? <FileText size={13} /> : <Video size={13} />}
-            {t} {t === 'downloads' ? `(${downloads.length})` : `(${videos.length})`}
+            {t} {t === 'downloads' ? `(${dlTotal})` : `(${vidTotal})`}
           </button>
         ))}
       </div>
 
-      {isLoading ? (
+      {(tab === 'downloads' ? dlLoading : vidLoading) ? (
         <div className="flex items-center justify-center py-20"><Loader2 size={24} className="animate-spin" style={{ color: 'var(--text-3)' }} /></div>
       ) : tab === 'downloads' ? (
         /* Downloads table */
@@ -434,7 +444,9 @@ export default function AdminContentPage() {
           </div>
           {downloads.length === 0 ? (
             <div className="px-5 py-10 text-center text-[13px]" style={{ color: 'var(--text-3)' }}>No downloads yet.</div>
-          ) : downloads.map((d) => (
+          ) : (
+            <>
+          {downloads.map((d) => (
             <div key={d.id} className="grid px-5 py-3 text-[13px] items-center" style={{ gridTemplateColumns: '1fr 100px 100px 80px 70px', borderBottom: '1px solid var(--border)' }}>
               <div>
                 <div className="font-semibold flex items-center gap-2" style={{ color: 'var(--text-1)' }}>
@@ -452,6 +464,9 @@ export default function AdminContentPage() {
               </div>
             </div>
           ))}
+          <Pagination page={dlPage} totalPages={dlTotalPages} total={dlTotal} onPageChange={setDlPage} />
+            </>
+          )}
         </div>
       ) : (
         /* Videos table */
@@ -461,7 +476,9 @@ export default function AdminContentPage() {
           </div>
           {videos.length === 0 ? (
             <div className="px-5 py-10 text-center text-[13px]" style={{ color: 'var(--text-3)' }}>No videos yet.</div>
-          ) : videos.map((v) => (
+          ) : (
+            <>
+          {videos.map((v) => (
             <div key={v.id} className="grid px-5 py-3 text-[13px] items-center" style={{ gridTemplateColumns: '1fr 140px 80px 60px 70px', borderBottom: '1px solid var(--border)' }}>
               <div>
                 <div className="font-semibold flex items-center gap-2" style={{ color: v.isFeatured ? 'var(--gold)' : 'var(--text-1)' }}>
@@ -479,6 +496,9 @@ export default function AdminContentPage() {
               </div>
             </div>
           ))}
+          <Pagination page={vidPage} totalPages={vidTotalPages} total={vidTotal} onPageChange={setVidPage} />
+            </>
+          )}
         </div>
       )}
 

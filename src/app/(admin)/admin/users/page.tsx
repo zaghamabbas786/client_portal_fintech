@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Users, Pencil, Trash2, X, Loader2, Search, KeyRound, Plus, CheckCircle, XCircle } from 'lucide-react'
 import { formatDate, getInitials } from '@/lib/utils'
+import Pagination from '@/components/admin/Pagination'
 
 type Role = 'STANDARD' | 'AURUM' | 'BOARDROOM' | 'ADMIN'
 type EAStatus = 'ACTIVE' | 'INACTIVE' | 'COMING_SOON'
@@ -363,12 +364,19 @@ export default function AdminUsersPage() {
   const [editUser, setEditUser] = useState<AdminUser | null>(null)
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState<Role | 'ALL'>('ALL')
+  const [page, setPage] = useState(1)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
+  const queryKey = ['admin', 'users', page, search, roleFilter]
   const { data, isLoading } = useQuery({
-    queryKey: ['admin', 'users'],
-    queryFn: (): Promise<{ users: AdminUser[] }> =>
-      fetch('/api/admin/users').then((r) => r.json()),
+    queryKey,
+    queryFn: (): Promise<{ users: AdminUser[]; total: number; page: number; totalPages: number }> => {
+      const params = new URLSearchParams()
+      params.set('page', String(page))
+      if (search) params.set('search', search)
+      if (roleFilter !== 'ALL') params.set('role', roleFilter)
+      return fetch(`/api/admin/users?${params}`).then((r) => r.json())
+    },
   })
 
   const deleteUser = useMutation({
@@ -381,14 +389,10 @@ export default function AdminUsersPage() {
   })
 
   const users = data?.users ?? []
-  const filtered = users.filter((u) => {
-    const matchSearch =
-      !search ||
-      u.email.toLowerCase().includes(search.toLowerCase()) ||
-      (u.fullName ?? '').toLowerCase().includes(search.toLowerCase())
-    const matchRole = roleFilter === 'ALL' || u.role === roleFilter
-    return matchSearch && matchRole
-  })
+  const total = data?.total ?? 0
+  const totalPages = data?.totalPages ?? 1
+
+  const handlePageChange = (p: number) => setPage(p)
 
   return (
     <div>
@@ -398,7 +402,7 @@ export default function AdminUsersPage() {
             <Users size={20} style={{ color: 'var(--text-2)' }} /> User Management
           </h1>
           <p className="text-[13px]" style={{ color: 'var(--text-2)' }}>
-            {users.length} total users — click ✏️ to edit profile & assign EA licenses
+            {total} total users — click ✏️ to edit profile & assign EA licenses
           </p>
         </div>
       </div>
@@ -409,7 +413,7 @@ export default function AdminUsersPage() {
           <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-3)' }} />
           <input
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
             placeholder="Search by name or email…"
             className="w-full pl-8 pr-3 py-2 rounded-lg text-[13px] outline-none"
             style={{ background: 'var(--bg-2)', border: '1px solid var(--border)', color: 'var(--text-1)' }}
@@ -419,7 +423,7 @@ export default function AdminUsersPage() {
           {(['ALL', ...ROLES] as (Role | 'ALL')[]).map((r) => (
             <button
               key={r}
-              onClick={() => setRoleFilter(r)}
+              onClick={() => { setRoleFilter(r); setPage(1) }}
               className="px-3 py-1.5 rounded-full text-[11px] font-bold transition-all"
               style={{
                 background: roleFilter === r ? (r === 'ALL' ? 'var(--red)' : ROLE_META[r as Role].bg) : 'var(--bg-2)',
@@ -446,10 +450,10 @@ export default function AdminUsersPage() {
           <div className="flex items-center justify-center py-16" style={{ color: 'var(--text-3)' }}>
             <Loader2 size={24} className="animate-spin" />
           </div>
-        ) : filtered.length === 0 ? (
+        ) : users.length === 0 ? (
           <div className="px-5 py-10 text-center text-[13px]" style={{ color: 'var(--text-3)' }}>No users found.</div>
         ) : (
-          filtered.map((user) => {
+          users.map((user) => {
             const meta = ROLE_META[user.role]
             return (
               <div
@@ -497,6 +501,7 @@ export default function AdminUsersPage() {
             )
           })
         )}
+        <Pagination page={page} totalPages={totalPages} total={total} onPageChange={handlePageChange} />
       </div>
 
       {editUser && <EditUserModal user={editUser} onClose={() => setEditUser(null)} />}

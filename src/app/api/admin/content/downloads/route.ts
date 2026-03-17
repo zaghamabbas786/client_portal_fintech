@@ -3,15 +3,26 @@ import { revalidateTag } from 'next/cache'
 import { requireAdmin } from '@/lib/admin-auth'
 import { prisma } from '@/lib/prisma'
 
-export async function GET() {
+const LIMIT = 10
+
+export async function GET(req: NextRequest) {
   const auth = await requireAdmin()
   if (auth.error) return auth.error
 
-  const [downloads, eas] = await Promise.all([
-    prisma.download.findMany({ orderBy: { createdAt: 'desc' }, include: { ea: true } }),
+  const { searchParams } = new URL(req.url)
+  const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10))
+
+  const [downloads, eas, total] = await Promise.all([
+    prisma.download.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: { ea: true },
+      skip: (page - 1) * LIMIT,
+      take: LIMIT,
+    }),
     prisma.eA.findMany({ orderBy: { name: 'asc' } }),
+    prisma.download.count(),
   ])
-  return NextResponse.json({ downloads, eas })
+  return NextResponse.json({ downloads, eas, total, page, totalPages: Math.ceil(total / LIMIT) })
 }
 
 export async function POST(req: NextRequest) {
