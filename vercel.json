@@ -5,7 +5,7 @@
       "maxDuration": 30
     }
   },
-  "regions": ["icn1"],
+  "regions": ["dub1"],
   "crons": [
     {
       "path": "/api/cron/check-in-email",
