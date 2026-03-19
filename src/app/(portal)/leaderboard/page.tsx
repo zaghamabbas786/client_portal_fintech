@@ -14,17 +14,6 @@ const MONTHS = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ]
 
-const MOCK_LEADERBOARD = [
-  { id: '1', rank: 1, name: 'Aiden W.', system: 'Aurum', propFirm: 'FTMO', payout: '$8,613', isAurum: true },
-  { id: '2', rank: 2, name: 'Liam B.', system: 'Aurum', propFirm: 'MyForexFunds', payout: '$6,782', isAurum: true },
-  { id: '3', rank: 3, name: 'Sophia L.', system: 'Aurum', propFirm: 'True Forex Funds', payout: '$5,684', isAurum: true },
-  { id: '4', rank: 4, name: 'Marcus T.', system: 'Aurum', propFirm: 'FTMO', payout: '$4,218', isAurum: true },
-  { id: '5', rank: 5, name: 'Emma C.', system: 'Omni', propFirm: 'FTMO', payout: '$3,210', isAurum: false },
-  { id: '6', rank: 6, name: 'Daniel K.', system: 'Omni', propFirm: 'The5%ers', payout: '$3,149', isAurum: false },
-  { id: '7', rank: 7, name: 'Olivia M.', system: 'Omni', propFirm: 'E8 Funding', payout: '$2,455', isAurum: false },
-  { id: '8', rank: 8, name: 'James R.', system: 'Omni', propFirm: 'Funded Next', payout: '$1,847', isAurum: false },
-]
-
 function parseMonthYear(params: { month?: string; year?: string }) {
   const now = new Date()
   const defaultMonth = now.toLocaleString('en-US', { month: 'long' })
@@ -53,18 +42,16 @@ export default async function LeaderboardPage({
 
   const entries = await getCachedLeaderboard(currentMonth, currentYear)
 
-  const rows = entries.length > 0
-    ? entries.map((e, i) => ({
-        id: e.id,
-        rank: i + 1,
-        name: e.user.fullName || 'Trader',
-        system: e.system,
-        propFirm: e.propFirm ?? '—',
-        payout: formatCurrency(e.payout.toString()),
-        isAurum: e.user.role !== 'STANDARD',
-        isUser: e.userId === userProfile?.id,
-      }))
-    : MOCK_LEADERBOARD.map((r) => ({ ...r, isUser: false }))
+  const rows = entries.map((e, i) => ({
+    id: e.id,
+    rank: i + 1,
+    name: e.user.fullName || 'Trader',
+    system: e.system,
+    propFirm: e.propFirm ?? '—',
+    payout: formatCurrency(e.payout.toString()),
+    isAurum: e.user.role !== 'STANDARD',
+    isUser: e.userId === userProfile?.id,
+  }))
 
   const rankColor = (rank: number) =>
     rank === 1 ? 'var(--gold)' : rank === 2 ? '#C0C0C0' : rank === 3 ? '#CD7F32' : 'var(--text-2)'
@@ -114,7 +101,13 @@ export default async function LeaderboardPage({
         </div>
 
         {/* Table rows */}
-        {rows.map((row) => {
+        {rows.length === 0 ? (
+          <div className="px-6 py-12 text-center">
+            <p className="text-[13px] mb-2" style={{ color: 'var(--text-3)' }}>No leaderboard entries for this month yet.</p>
+            <p className="text-[12px]" style={{ color: 'var(--text-3)' }}>Submit your payout to be the first!</p>
+          </div>
+        ) : (
+        rows.map((row) => {
           const isTop3 = row.rank <= 3
           return (
             <div
@@ -154,7 +147,8 @@ export default async function LeaderboardPage({
               </span>
             </div>
           )
-        })}
+        })
+        )}
 
         {/* Bottom banner */}
         <div

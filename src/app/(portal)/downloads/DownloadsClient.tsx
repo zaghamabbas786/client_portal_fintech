@@ -12,20 +12,6 @@ const FILE_TYPE_META: Record<string, { emoji: string; bg: string; color: string 
   BROKER_SETTINGS: { emoji: '📋', bg: 'var(--blue-s)', color: 'var(--blue)' },
 }
 
-const MOCK_FILES = {
-  Omni: [
-    { id: '1', name: 'Omni EA v2.2', description: 'EA File · v2.2', fileType: 'EA_FILE', isLatest: true, fileUrl: null },
-    { id: '2', name: 'Omni Setup Guide', description: 'Setup Guide · v2', fileType: 'PDF_GUIDE', isLatest: true, fileUrl: null },
-    { id: '3', name: 'Omni Set Files Pack', description: 'Set Files · v2', fileType: 'SET_FILE', isLatest: true, fileUrl: null },
-    { id: '4', name: 'Omni Broker Settings', description: 'Broker Settings · v1', fileType: 'BROKER_SETTINGS', isLatest: true, fileUrl: null },
-  ],
-  'Asia Scalper': [
-    { id: '5', name: 'Asia Scalper EA v2.1', description: 'EA File · v2.1', fileType: 'EA_FILE', isLatest: true, fileUrl: null },
-    { id: '6', name: 'Asia Scalper Guide', description: 'Setup Guide · v2', fileType: 'PDF_GUIDE', isLatest: true, fileUrl: null },
-    { id: '7', name: 'Asia Scalper Set Files', description: 'Set Files · v2.1', fileType: 'SET_FILE', isLatest: true, fileUrl: null },
-  ],
-}
-
 interface DownloadItem {
   id: string
   name: string
@@ -63,7 +49,7 @@ export default function DownloadsClient() {
     grouped[key].push(d)
   })
 
-  const useMock = !isLoading && Object.keys(grouped).length === 0
+  const hasDownloads = Object.keys(grouped).length > 0
 
   return (
     <div>
@@ -80,9 +66,9 @@ export default function DownloadsClient() {
         <div className="flex items-center justify-center py-16" style={{ color: 'var(--text-3)' }}>
           <div className="animate-pulse text-[13px]">Loading downloads…</div>
         </div>
-      ) : (
+      ) : hasDownloads ? (
         <>
-          {(useMock ? Object.entries(MOCK_FILES) : Object.entries(grouped)).map(([eaName, files]) => (
+          {Object.entries(grouped).map(([eaName, files]) => (
             <div key={eaName} className="mb-6">
               <h2 className="text-[15px] font-semibold mb-3" style={{ color: 'var(--text-1)' }}>
                 {eaName} Files
@@ -146,12 +132,17 @@ export default function DownloadsClient() {
             </div>
           ))}
 
-          {!useMock && totalPages > 1 && (
+          {totalPages > 1 && (
             <div className="rounded-[10px] overflow-hidden mt-4" style={{ background: 'var(--bg-2)', border: '1px solid var(--border)' }}>
               <Pagination page={page} totalPages={totalPages} total={total} onPageChange={setPage} />
             </div>
           )}
         </>
+      ) : (
+        <div className="p-12 text-center rounded-[10px]" style={{ background: 'var(--bg-2)', border: '1px solid var(--border)' }}>
+          <p className="text-[13px]" style={{ color: 'var(--text-3)' }}>No downloads available yet.</p>
+          <p className="text-[12px] mt-1" style={{ color: 'var(--text-3)' }}>Check back later or contact support.</p>
+        </div>
       )}
 
       {/* Locked Aurum section */}

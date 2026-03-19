@@ -129,52 +129,12 @@ export default async function DashboardPage() {
 
           <div className="space-y-2">
             {communityPosts.length === 0 ? (
-              // Fallback mock data matching screenshots
-              [
-                { name: 'Anonymous', time: 'a day ago', tag: 'PAYOUT', body: 'I made a billion', amount: '1000000', tagStyle: { bg: 'var(--green-s)', color: 'var(--green)' } },
-                { name: 'Anonymous', time: 'a day ago', tag: 'PAYOUT', body: 'I just made $6,500', amount: '6500', tagStyle: { bg: 'var(--green-s)', color: 'var(--green)' } },
-                { name: 'Vivid Capital', time: 'a day ago', tag: 'AURUM', body: 'I just made', amount: '5000', tagStyle: { bg: 'var(--gold-s)', color: 'var(--gold)' } },
-                { name: 'Vivid Capital', time: 'a day ago', tag: 'AURUM', body: 'I just made $500 with aurum', amount: null, tagStyle: { bg: 'var(--gold-s)', color: 'var(--gold)' } },
-              ].map((post, i) => (
-                <div
-                  key={i}
-                  className="p-[14px] rounded-lg"
-                  style={{
-                    background: 'var(--bg-1)',
-                    border: `1px solid var(--border)`,
-                    borderLeft: `3px solid ${post.tag === 'AURUM' ? 'var(--gold)' : 'var(--green)'}`,
-                  }}
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <div
-                      className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0"
-                      style={{ background: avatarGradients[i % avatarGradients.length] }}
-                    >
-                      {post.name[0]}
-                    </div>
-                    <div>
-                      <div className="text-[12px] font-semibold" style={{ color: 'var(--text-1)' }}>{post.name}</div>
-                      <div className="text-[10px]" style={{ color: 'var(--text-3)' }}>{post.time}</div>
-                    </div>
-                    <span
-                      className="ml-auto text-[9px] font-bold px-[7px] py-[2px] rounded-[3px]"
-                      style={{ background: post.tagStyle.bg, color: post.tagStyle.color }}
-                    >
-                      {post.tag}
-                    </span>
-                  </div>
-                  <p className="text-[13px] mb-1" style={{ color: 'var(--text-2)' }}>{post.body}</p>
-                  {post.amount && (
-                    <div className="font-mono text-[22px] font-bold my-1.5" style={{ color: 'var(--green)' }}>
-                      ${parseFloat(post.amount).toLocaleString(undefined, { minimumFractionDigits: 0 })}
-                    </div>
-                  )}
-                  <div className="flex gap-3 mt-2 text-[11px]" style={{ color: 'var(--text-3)' }}>
-                    <span>❤️ 0</span>
-                    <span>💬 0</span>
-                  </div>
-                </div>
-              ))
+              <div className="p-6 text-center rounded-lg" style={{ background: 'var(--bg-1)', border: '1px solid var(--border)' }}>
+                <p className="text-[13px]" style={{ color: 'var(--text-3)' }}>No community posts yet.</p>
+                <Link href="/community" className="text-[12px] font-semibold mt-2 inline-block" style={{ color: 'var(--red)' }}>
+                  Be the first to post
+                </Link>
+              </div>
             ) : (
               communityPosts.map((post, i) => {
                 const ts = tagStyle[post.tag] ?? tagStyle.GENERAL
@@ -255,72 +215,58 @@ export default async function DashboardPage() {
             <span className="text-right">PAYOUT</span>
           </div>
 
-          {/* Leaderboard rows — use mock if DB empty */}
-          {(leaderboard.length > 0
-            ? leaderboard.map((entry, i) => {
-                const isUser = entry.userId === userProfile.id
-                const rank = i + 1
-                const rankColor = rank === 1 ? 'var(--gold)' : rank === 2 ? '#C0C0C0' : rank === 3 ? '#CD7F32' : 'var(--text-2)'
-                const isAurum = entry.user.role !== 'STANDARD'
+          {/* Leaderboard rows */}
+          {leaderboard.length === 0 ? (
+            <div className="p-6 text-center rounded-lg" style={{ background: 'var(--bg-1)', border: '1px solid var(--border)' }}>
+              <p className="text-[13px]" style={{ color: 'var(--text-3)' }}>No leaderboard entries yet.</p>
+              <Link href="/leaderboard" className="text-[12px] font-semibold mt-2 inline-block" style={{ color: 'var(--red)' }}>
+                Submit your first payout
+              </Link>
+            </div>
+          ) : (
+          leaderboard.map((entry, i) => {
+            const isUser = entry.userId === userProfile.id
+            const rank = i + 1
+            const rankColor = rank === 1 ? 'var(--gold)' : rank === 2 ? '#C0C0C0' : rank === 3 ? '#CD7F32' : 'var(--text-2)'
+            const isAurum = entry.user.role !== 'STANDARD'
 
-                return {
-                  id: entry.id,
-                  rank,
-                  name: entry.user.fullName || 'User',
-                  system: entry.system,
-                  payout: formatCurrency(entry.payout.toString()),
-                  isUser,
-                  rankColor,
-                  isAurum,
-                }
-              })
-            : [
-                { id: '1', rank: 1, name: 'Aiden W.', system: 'Aurum', payout: '$8,613', isUser: false, rankColor: 'var(--gold)', isAurum: true },
-                { id: '2', rank: 2, name: 'Liam B.', system: 'Aurum', payout: '$6,782', isUser: false, rankColor: '#C0C0C0', isAurum: true },
-                { id: '3', rank: 3, name: 'Sophia L.', system: 'Aurum', payout: '$5,684', isUser: false, rankColor: '#CD7F32', isAurum: true },
-                { id: '4', rank: 4, name: 'Marcus T.', system: 'Aurum', payout: '$4,218', isUser: false, rankColor: 'var(--text-2)', isAurum: true },
-                { id: '5', rank: 5, name: 'Emma C.', system: 'Omni', payout: '$3,210', isUser: false, rankColor: 'var(--text-2)', isAurum: false },
-                { id: '6', rank: 6, name: 'Daniel K.', system: 'Omni', payout: '$3,149', isUser: false, rankColor: 'var(--text-2)', isAurum: false },
-                { id: '7', rank: 7, name: 'Olivia M.', system: 'Omni', payout: '$2,455', isUser: false, rankColor: 'var(--text-2)', isAurum: false },
-                { id: '8', rank: 8, name: 'James R.', system: 'Omni', payout: '$1,847', isUser: false, rankColor: 'var(--text-2)', isAurum: false },
-              ]
-          ).map((row) => (
+            return (
             <div
-              key={row.id}
+              key={entry.id}
               className="grid gap-1 px-[14px] py-[9px] rounded-[6px] mb-0.5 text-[12px]"
               style={{
                 gridTemplateColumns: '24px 1fr 80px 80px',
-                background: row.isUser ? 'var(--blue-s)' : row.rank === 1 ? 'var(--gold-s)' : 'transparent',
-                border: row.isUser
+                background: isUser ? 'var(--blue-s)' : rank === 1 ? 'var(--gold-s)' : 'transparent',
+                border: isUser
                   ? '1px solid rgba(66,165,245,0.15)'
-                  : row.rank === 1
+                  : rank === 1
                   ? '1px solid rgba(212,175,55,0.15)'
                   : '1px solid transparent',
               }}
             >
               <span
                 className="font-mono font-bold text-[13px]"
-                style={{ color: row.rankColor }}
+                style={{ color: rankColor }}
               >
-                {row.rank}
+                {rank}
               </span>
               <span
                 className="font-semibold truncate"
-                style={{ color: row.isUser ? 'var(--blue)' : 'var(--text-1)' }}
+                style={{ color: isUser ? 'var(--blue)' : 'var(--text-1)' }}
               >
-                {row.isUser ? 'You' : row.name}
+                {isUser ? 'You' : (entry.user.fullName || 'User')}
               </span>
               <span
                 className="text-right text-[11px] font-semibold"
-                style={{ color: row.isAurum ? 'var(--gold)' : 'var(--text-3)' }}
+                style={{ color: isAurum ? 'var(--gold)' : 'var(--text-3)' }}
               >
-                {row.system}
+                {entry.system}
               </span>
               <span className="font-mono font-bold text-right" style={{ color: 'var(--green)' }}>
-                {row.payout}
+                {formatCurrency(entry.payout.toString())}
               </span>
             </div>
-          ))}
+          )}))}
 
           {/* Footer banner */}
           <div
@@ -388,35 +334,12 @@ export default async function DashboardPage() {
                 </div>
               ))
             ) : (
-              // Mock EA entries matching screenshots
-              <>
-                {[
-                  { name: 'Omni EA', sub: 'TTT · Acc: 847291' },
-                  { name: 'Asia Scalper', sub: 'TTT · Acc: 847291' },
-                ].map((ea, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center justify-between px-[14px] py-3 rounded-[7px]"
-                    style={{ background: 'var(--bg-1)', border: '1px solid var(--border)' }}
-                  >
-                    <div className="flex items-center gap-[10px]">
-                      <div
-                        className="w-8 h-8 rounded-[7px] flex items-center justify-center"
-                        style={{ background: 'var(--green-s)' }}
-                      >
-                        ⚡
-                      </div>
-                      <div>
-                        <div className="text-[13px] font-semibold" style={{ color: 'var(--text-1)' }}>{ea.name}</div>
-                        <div className="text-[11px]" style={{ color: 'var(--text-3)' }}>{ea.sub}</div>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-semibold px-[9px] py-[3px] rounded-full" style={{ background: 'var(--green-s)', color: 'var(--green)' }}>
-                      ● Active
-                    </span>
-                  </div>
-                ))}
-              </>
+              <div className="p-6 text-center rounded-[7px]" style={{ background: 'var(--bg-1)', border: '1px solid var(--border)' }}>
+                <p className="text-[13px]" style={{ color: 'var(--text-3)' }}>No EAs assigned yet.</p>
+                <Link href="/my-eas" className="text-[12px] font-semibold mt-2 inline-block" style={{ color: 'var(--red)' }}>
+                  Manage EAs
+                </Link>
+              </div>
             )}
 
             {/* Locked Aurum EA */}
@@ -503,11 +426,11 @@ export default async function DashboardPage() {
               <div className="flex gap-2 mb-3">
                 <div className="flex-1 rounded-[6px] p-2.5 text-center" style={{ background: 'var(--bg-1)' }}>
                   <div className="text-[10px] mb-0.5" style={{ color: 'var(--text-3)' }}>Balance</div>
-                  <div className="font-mono text-[16px] font-bold">$203,149</div>
+                  <div className="font-mono text-[16px] font-bold">—</div>
                 </div>
                 <div className="flex-1 rounded-[6px] p-2.5 text-center" style={{ background: 'var(--bg-1)' }}>
                   <div className="text-[10px] mb-0.5" style={{ color: 'var(--text-3)' }}>Return</div>
-                  <div className="font-mono text-[16px] font-bold" style={{ color: 'var(--green)' }}>+2.1%</div>
+                  <div className="font-mono text-[16px] font-bold" style={{ color: 'var(--green)' }}>—</div>
                 </div>
               </div>
               <div className="h-12 rounded-[6px]" style={{ background: 'var(--green-s)' }} />
@@ -552,12 +475,15 @@ export default async function DashboardPage() {
           </div>
 
           <div className="grid grid-cols-2 gap-1.5 mb-2.5">
-            {(downloads.length > 0 ? downloads : [
-              { id: '1', name: 'Omni EA v2', description: 'EA File · v2', fileType: 'EA_FILE' as const },
-              { id: '2', name: 'Omni Setup Guide', description: 'Setup Guide · v2', fileType: 'PDF_GUIDE' as const },
-              { id: '3', name: 'Omni Set Files Pack', description: 'Set Files · v2', fileType: 'SET_FILE' as const },
-              { id: '4', name: 'Omni Broker Settings', description: 'Broker Settings · v1', fileType: 'BROKER_SETTINGS' as const },
-            ] as { id: string; name: string; description: string | null; fileType: string }[]).slice(0, 4).map((file) => {
+            {downloads.length === 0 ? (
+              <div className="col-span-2 p-6 text-center rounded-lg" style={{ background: 'var(--bg-1)', border: '1px solid var(--border)' }}>
+                <p className="text-[13px]" style={{ color: 'var(--text-3)' }}>No downloads yet.</p>
+                <Link href="/downloads" className="text-[12px] font-semibold mt-2 inline-block" style={{ color: 'var(--red)' }}>
+                  View Downloads
+                </Link>
+              </div>
+            ) : (
+            downloads.slice(0, 4).map((file) => {
               const iconStyle: Record<string, { bg: string; color: string; emoji: string }> = {
                 EA_FILE: { bg: 'var(--green-s)', color: 'var(--green)', emoji: '📥' },
                 PDF_GUIDE: { bg: 'var(--blue-s)', color: 'var(--blue)', emoji: '📄' },
@@ -588,6 +514,7 @@ export default async function DashboardPage() {
                 </div>
               )
             })}
+            )}
           </div>
 
           {/* Locked Aurum resources */}
@@ -623,12 +550,15 @@ export default async function DashboardPage() {
           </div>
 
           <div className="grid grid-cols-2 gap-1.5 mb-[14px]">
-            {(videos.length > 0 ? videos : [
-              { id: '1', title: 'Getting Started with Omni EA', duration: '8:21', category: 'Getting Started', isFeatured: false },
-              { id: '2', title: 'Installing Your EA on MT4/MT5', duration: '8:15', category: 'Getting Started', isFeatured: false },
-              { id: '3', title: 'FTMO Challenge Setup Guide', duration: '12:20', category: 'Prop Firm Guides', isFeatured: false },
-              { id: '4', title: 'How Top Clients Scale to £10k+/mo', duration: '25:18', category: 'Scaling', isFeatured: true },
-            ]).slice(0, 4).map((video) => (
+            {videos.length === 0 ? (
+              <div className="col-span-2 p-6 text-center rounded-lg" style={{ background: 'var(--bg-1)', border: '1px solid var(--border)' }}>
+                <p className="text-[13px]" style={{ color: 'var(--text-3)' }}>No videos yet.</p>
+                <Link href="/education" className="text-[12px] font-semibold mt-2 inline-block" style={{ color: 'var(--red)' }}>
+                  View Education
+                </Link>
+              </div>
+            ) : (
+            videos.slice(0, 4).map((video) => (
               <Link
                 key={video.id}
                 href="/education"
@@ -654,7 +584,8 @@ export default async function DashboardPage() {
                   {video.duration} · {video.category}
                 </div>
               </Link>
-            ))}
+            ))
+            )}
           </div>
 
           {/* Support section */}
@@ -672,10 +603,12 @@ export default async function DashboardPage() {
               </Link>
             </div>
 
-            {(tickets.length > 0 ? tickets : [
-              { id: 'ticket-1', ticketNumber: '#1247', subject: 'Weekend trading query', status: 'RESOLVED' as const, priority: 'MEDIUM' as const },
-              { id: 'ticket-2', ticketNumber: '#1251', subject: 'EA disconnected', status: 'IN_PROGRESS' as const, priority: 'HIGH' as const },
-            ]).slice(0, 2).map((ticket, i) => {
+            {tickets.length === 0 ? (
+              <div className="p-4 text-center rounded-[6px]" style={{ background: 'var(--bg-1)', border: '1px solid var(--border)' }}>
+                <p className="text-[12px]" style={{ color: 'var(--text-3)' }}>No support tickets.</p>
+              </div>
+            ) : (
+            tickets.slice(0, 2).map((ticket, i) => {
               const statusS = ticketStatusStyle[(ticket as any).status ?? 'OPEN']
               const priorityS = ticketPriorityStyle[(ticket as any).priority ?? 'MEDIUM']
               const num = (ticket as any).ticketNumber ?? `#${ticket.id.slice(0, 4)}`
@@ -711,7 +644,8 @@ export default async function DashboardPage() {
                   </span>
                 </div>
               )
-            })}
+            })
+            )}
 
             <Link
               href="/support"
